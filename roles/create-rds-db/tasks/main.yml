@@ -1,0 +1,137 @@
+---
+
+# ====================== Check that all the required parameters are provided ===================
+
+- name: '[{{ software_component }}] check the common variables'
+  include_tasks: '{{ role_path }}/../../tasks/validate-common-vars.yml'
+
+- name: "[{{ software_component }}] check if 'software_component' is supplied"
+  fail: msg="missing var 'software_component'"
+  when: software_component == ''
+
+- name: "[{{ software_component }}] check if 'base_domain' is supplied"
+  fail: msg="missing var 'base_domain'"
+  when: base_domain == ''
+
+# ======================
+
+- name: '[{{ software_component }}] gather basis stack outputs'
+  gather_stack_outputs:
+    stack_name: '{{ env }}-{{ project_id }}-basis'
+  register: basis_stack
+
+- name: '[{{ software_component }}] get KMS Key'
+  set_fact:
+    kms_key_id: '{{ basis_stack.outputs.KmsSecretsKey }}'
+
+- name: '[{{ software_component }}] gather Route53 stack outputs'
+  gather_stack_outputs:
+    stack_name: '{{ env }}-{{ project_id }}-route53'
+  register: route53_stack
+
+# ====================== SSM: Postgres master user ===================
+
+- name: '[{{ software_component }}] upload RDS master username to SSM'
+  aws_ssm_parameter_store:
+    region: '{{ aws_region }}'
+    overwrite_value: 'never'
+    name: '{{ ssmkey_rds_master_username_key }}'
+    description: 'The username for the RDS master user'
+    string_type: 'String'
+    value: 'postgres'
+
+- name: '[{{ software_component }}] check if RDS master password exists in SSM'
+  command: aws --region {{ aws_region }} ssm get-parameter --name {{ ssmkey_rds_master_password_key }}
+  register: result
+  failed_when: result.rc not in [0,255] or (result.rc == 255 and 'ParameterNotFound' not in result.stderr)
+  changed_when: result.rc not in [0]
+
+- name: '[{{ software_component }}] set the flag'
+  set_fact:
+    generate_new_key: "{{ result.rc == 255 and 'ParameterNotFound' in result.stderr }}"
+
+- name: '[{{ software_component }}] generate random password if needed'
+  when: generate_new_key
+  no_log: true
+  set_fact:
+    master_password: "{{ lookup('password', '/dev/null length=60 chars=ascii_letters') }}"
+
+- name: '[{{ software_component }}] upload RDS master password to SSM'
+  when: generate_new_key
+  aws_ssm_parameter_store:
+    region: '{{ aws_region }}'
+    overwrite_value: 'never'
+    name: '{{ ssmkey_rds_master_password_key }}'
+    description: 'The password for the RDS master user'
+    string_type: 'SecureString'
+    key_id: '{{ kms_key_id }}'
+    value: '{{ master_password }}'
+
+# ====================== Deploy CloudFormation stack ===================
+
+- name: '[{{ software_component }}] get CloudFormation template'
+  set_fact:
+    template_filename: '{{ role_path }}/files/cf-rds.yml'
+
+- include_role:
+    name: 'run-cloudformation'
+  vars:
+    stack_name: '{{ env }}-{{ project_id }}-{{ software_component }}-rds'
+    template: '{{ template_filename }}'
+    template_parameters:
+      VpcCidr: '{{ local_vpc_cidr }}'
+      VpnCidr: '{{ ops_shared_vpc_cidr }}'
+
+      RdsMasterUsername: "{{ lookup('aws_ssm', ssmkey_rds_master_username_key, region=aws_region) }}"
+      RdsMasterUserPasswordSsmKeyName: '{{ ssmkey_rds_master_password_key }}'
+
+      RdsRoute53HostedZonePublic: '{{ route53_stack.outputs.PublicHostedZoneId }}'
+      RdsRoute53HostedZonePrivate: '{{ route53_stack.outputs.PrivateHostedZoneId }}'
+      RdsRoute53RecordName: '{{ rds_route53_record_name }}'
+      RdsRoute53ReadRecordName: '{{ rds_route53_ro_record_name }}'
+
+
+# ======================  Post-processing  ===================
+
+- name: '[{{ software_component }}] build PostgreSQL client Docker image'
+  command: docker build -t psql-client -f {{ role_path }}/../../misc/docker/Dockerfile.psql-client .
+
+- name: '[{{ software_component }}] gather RDS stack outputs'
+  gather_stack_outputs:
+    stack_name: '{{ env }}-{{ project_id }}-{{ software_component }}-rds'
+  register: rds_stack
+
+- name: '[{{ software_component }}] get facts'
+  no_log: true
+  set_fact:
+    rds_endpoint: '{{ rds_stack.outputs.RdsClusterEndpointAddress }}'
+    rds_username: "{{ lookup('aws_ssm', ssmkey_rds_master_username_key, region=aws_region) }}"
+    rds_password: "{{ lookup('aws_ssm', ssmkey_rds_master_password_key, decrypt=True, region=aws_region) }}"
+
+- name: "[{{ software_component }}] create '{{ rds_schema_name }}' schema"
+  no_log: true
+  environment:
+    PGPASSWORD: '{{ rds_password }}'
+  command: >-
+    docker run --rm -e PGPASSWORD psql-client -c "
+      CREATE SCHEMA IF NOT EXISTS {{ rds_schema_name }} AUTHORIZATION {{ rds_username }};
+    " postgresql://{{ rds_username }}@{{ rds_endpoint }}:{{ rds_port }}/{{ rds_db_name }}
+
+- name: "[{{ software_component }}] drop 'public' schema"
+  no_log: true
+  environment:
+    PGPASSWORD: '{{ rds_password }}'
+  command: >-
+    docker run --rm -e PGPASSWORD psql-client -c "
+      DROP SCHEMA IF EXISTS public;
+    " postgresql://{{ rds_username }}@{{ rds_endpoint }}:{{ rds_port }}/{{ rds_db_name }}
+
+- include_role:
+    name: 'create-db-user'
+  vars:
+    app_db_username: '{{ readonly_user_name }}'
+    ssmkey_rds_app_user_username_key: '{{ ssmkey_rds_readonly_username_key }}'
+    ssmkey_rds_app_user_password_key: '{{ ssmkey_rds_readonly_password_key }}'
+    sequence_privileges: 'SELECT'
+    table_privileges: 'SELECT'
+    function_privileges: 'EXECUTE'

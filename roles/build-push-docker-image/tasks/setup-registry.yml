@@ -1,0 +1,34 @@
+---
+
+- name: '[{{ ecr_repository_name }}] get CloudFormation template'
+  set_fact:
+    cf_ecr_template: '{{ role_path }}/files/cf-ecr.yml'
+
+- name: '[{{ ecr_repository_name }}] assemble the ECR stack name'
+  set_fact:
+    ecr_stack_name: '{{ ecr_repository_name }}-ecr'
+
+- name: '[{{ ecr_repository_name }}] deploy the ECR stack'
+  include_role:
+    name: 'run-cloudformation'
+  vars:
+    stack_name: '{{ ecr_stack_name }}'
+    template: '{{ cf_ecr_template }}'
+
+- name: '[{{ ecr_repository_name }}] gather the ECR stack outputs'
+  gather_stack_outputs:
+    stack_name: '{{ ecr_stack_name }}'
+  register: ecr_stack
+
+- name: '[{{ ecr_repository_name }}] store the ECR registry url'
+  set_fact:
+    ecr_registry_uri: '{{ ecr_stack.outputs.EcrRepositoryUrl }}'
+
+- name: '[{{ ecr_repository_name }}] get Docker login credential'
+  command: 'aws --region {{ aws_region }} ecr get-login-password'
+  register: r_ecr_password
+  no_log: true
+
+- name: '[{{ ecr_repository_name }}] login to ECR'
+  command: 'docker login --username AWS --password {{ r_ecr_password.stdout }} {{ ecr_registry_uri }}'
+  no_log: true

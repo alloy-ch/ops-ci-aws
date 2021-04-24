@@ -1,0 +1,11 @@
+---
+
+- name: "check if all the mandatory variables are supplied"
+  fail:
+    msg: "at least one of ['git_info','env','aws_region','project_id','project_version','software_component'] is missing"
+  when: git_info is not defined or git_info.repo_name is not defined or git_info.repo_name == '' or
+        env is not defined or env == '' or
+        aws_region is not defined or aws_region == '' or
+        project_id is not defined or project_id == '' or
+        project_version is not defined or project_version == '' or
+        software_component is not defined or software_component == ''

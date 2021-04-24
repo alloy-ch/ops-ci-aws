@@ -1,0 +1,3 @@
+---
+
+workspace_code_path: '{{ workspace_path | realpath }}/code'

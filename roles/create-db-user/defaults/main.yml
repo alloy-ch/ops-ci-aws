@@ -1,0 +1,26 @@
+---
+
+# ------------------
+# general settings for the RDS instance
+software_component: ''
+ssmkey_rds_master_username_key: '/{{ project_id }}/{{ software_component }}/rds/master-username'
+ssmkey_rds_master_password_key: '/{{ project_id }}/{{ software_component }}/rds/master-password'
+rds_endpoint_cloudformation_export_name: ''
+rds_endpoint: ''
+rds_db_name: '{{ project_id }}'
+rds_schema_name: '{{ rds_db_name }}'
+rds_port: '5432'
+
+# ------------------
+# application user specific settings
+app_db_username: ''
+ssmkey_rds_app_user_username_key: ''
+ssmkey_rds_app_user_password_key: ''
+
+# ------------------
+# DB privileges
+database_privileges: 'CONNECT,TEMP'
+schema_privileges: 'USAGE'
+sequence_privileges: 'ALL PRIVILEGES'
+table_privileges: 'SELECT,UPDATE,DELETE,INSERT'
+function_privileges: 'ALL PRIVILEGES'

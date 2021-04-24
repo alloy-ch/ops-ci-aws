@@ -1,0 +1,113 @@
+---
+
+- name: '[{{ stack_name }}] check the common variables'
+  include_tasks: '{{ role_path }}/../../tasks/validate-common-vars.yml'
+
+#
+# jinja2 templating
+#
+- name: '[{{ stack_name }}] copy and template out CloudFormation'
+  template:
+    src: '{{ template }}'
+    dest: '{{ workspace_path }}/cloudformation.yml'
+  no_log: true
+
+- name: '[{{ stack_name }}] debug'
+  debug:
+    msg: 'rendered CloudFormation template: {{ workspace_path }}/cloudformation.yml'
+
+#
+# check if AWS SAM is required
+#
+- name: '[{{ stack_name }}] read the CloudFormation file'
+  command: cat "{{ workspace_path }}/cloudformation.yml"
+  no_log: true
+  register: cf_output
+
+- name: '[{{ stack_name }}] check if SAM is needed to deploy the stack'
+  set_fact:
+    is_sam_required: "{{ true if cf_output.stdout.find('AWS::Serverless-') != -1 else false }}"
+
+#
+# get name of the correct S3 bucket
+#
+- name: '[{{ stack_name }}] retrieve the infrastructure S3 bucket name from deployed CloudFormation stacks'
+  block:
+    - name: '[{{ stack_name }}] get the bucket name'
+      set_fact:
+        basis_stack_name: "{{ (env + '-' + project_id + '-basis') if region != 'us-east-1' else (env + '-' + project_id + '-basis-us-east-1') }}"
+
+    - name: '[{{ stack_name }}] get the CloudFormation stack outputs'
+      gather_stack_outputs:
+        region: '{{ region }}'
+        stack_name: '{{ basis_stack_name }}'
+      register: basis_stack
+      no_log: true
+
+    - name: '[{{ stack_name }}] find name of the correct S3 bucket'
+      set_fact:
+        deployment_bucket: '{{ basis_stack.outputs.InfrastructureCodeS3Bucket }}'
+  when: infrastructure_bucket_override == ''
+
+- name: '[{{ stack_name }}] take the infrastructure S3 bucket name directly from infrastructure_bucket_override'
+  set_fact:
+    deployment_bucket: '{{ infrastructure_bucket_override }}'
+  when: infrastructure_bucket_override != ''
+
+#
+# build parameter_overrides string
+#
+- name: '[{{ stack_name }}] clear existing parameter_overrides'
+  set_fact:
+    parameter_overrides: ''
+
+- name: '[{{ stack_name }}] build parameter_overrides'
+  set_fact:
+    parameter_overrides: '{{parameter_overrides}} {{ item.key }}="{{ item.value }}"'
+  with_items: '{{ template_parameters | default({}) | dict2items }}'
+  when: template_parameters is defined and template_parameters.keys()|length > 0
+  no_log: true
+
+- name: '[{{ stack_name }}] set parameter_overrides'
+  set_fact:
+    parameter_overrides: '--parameter-overrides {{ parameter_overrides }}'
+  when: parameter_overrides is defined and parameter_overrides != ''
+  no_log: true
+
+#
+# SAM processing, if relevant
+#
+- name: '[{{ stack_name }}] in case of SAM template: transform'
+  command: >-
+    aws cloudformation package
+       --template-file {{ workspace_path }}/cloudformation.yml
+       --output-template-file {{ workspace_path }}/cloudformation-final.yml
+       --s3-bucket {{ deployment_bucket }}
+       --s3-prefix {{ git_info.repo_name }}
+       --region {{ region }}
+  when: is_sam_required
+
+- name: '[{{ stack_name }}] in case of classical CloudFormation template: copy'
+  command: cp {{ workspace_path }}/cloudformation.yml {{ workspace_path }}/cloudformation-final.yml
+  when: not is_sam_required
+
+#
+# finally, deploy
+#
+- name: '[{{ stack_name }}] apply stack updates'
+  command: >-
+    aws cloudformation deploy
+      --template-file {{ workspace_path }}/cloudformation-final.yml
+      --s3-bucket {{ deployment_bucket }}
+      --s3-prefix {{ git_info.repo_name }}
+      --stack-name {{ stack_name }}
+      --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
+      --region {{ region }}
+      {{ parameter_overrides }}
+      --tags
+        Environment="{{ env }}"
+        Name="{{ stack_name }}"
+        Project="{{ project_id }}"
+        Version="{{ project_version }}"
+        Repository="{{ git_info.repo_name }}"
+      --no-fail-on-empty-changeset

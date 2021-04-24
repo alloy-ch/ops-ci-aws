@@ -1,0 +1,232 @@
+---
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: 'RDS database for {{ software_component }} (r{{ project_version }})'
+
+
+Parameters:
+
+  VpcCidr:
+    Type: 'String'
+    Description: 'VPC internal CIDR'
+  VpnCidr:
+    Type: 'String'
+    Description: 'VPN CIDR at the shared ops account'
+
+  RdsMasterUsername:
+    Description: 'The username for the master/root user of the instance'
+    Type: 'String'
+    Default: 'postgres'
+  RdsMasterUserPasswordSsmKeyName:
+    Description: 'The SSM Key name containing the password for the master user of the db instance'
+    Type: 'String'
+  RdsRoute53HostedZonePublic:
+    Description: 'The route 53 hosted zone in which to create the DNS record for the Route53 CNAME record'
+    Type: 'String'
+  RdsRoute53HostedZonePrivate:
+    Description: 'Another (private) route 53 hosted zone in which to create the DNS record for the Route53 CNAME record'
+    Type: 'String'
+  RdsRoute53RecordName:
+    Description: 'The name that should go in a DNS CNAME record pointing to the Postgres endpoint'
+    Type: 'String'
+  RdsRoute53ReadRecordName:
+    Description: 'The name that should go in a DNS CNAME record pointing to the Postgres READONLY endpoint'
+    Type: 'String'
+
+
+Conditions:
+  IsProd: !Equals [ '{{ env }}', 'prod' ]
+
+
+Resources:
+
+  # ============================ RDS ==============================
+
+  RdsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !ImportValue '{{ project_id }}-vpc-id'
+      GroupDescription: 'Allow connections into RDS from VPN, local VPN, and k8s EC2 nodes'
+      SecurityGroupIngress:
+        - CidrIp: !Ref VpcCidr
+          FromPort: 5432
+          ToPort: 5432
+          IpProtocol: 'tcp'
+        - CidrIp: !Ref VpnCidr
+          FromPort: 5432
+          ToPort: 5432
+          IpProtocol: 'tcp'
+        - SourceSecurityGroupId: !ImportValue '{{ project_id }}-eks-nodes-sg'
+          FromPort: 5432
+          ToPort: 5432
+          IpProtocol: 'tcp'
+        - SourceSecurityGroupId: !ImportValue '{{ project_id }}-codebuild-sg'
+          FromPort: 5432
+          ToPort: 5432
+          IpProtocol: 'tcp'
+      Tags:
+        - { Key: 'Name', Value: '{{ env }}-{{ project_id }}-{{ software_component }}-rds-sg' }
+        - { Key: 'Project', Value: '{{ project_id }}' }
+        - { Key: 'Environment', Value: '{{ env }}' }
+        - { Key: 'Version', Value: '{{ project_version }}' }
+        - { Key: 'Repository', Value: '{{ git_info.repo_name }}' }
+
+  RdsSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: 'Subnet group for {{ software_component }} DB'
+      DBSubnetGroupName: '{{ env }}-{{ project_id }}-{{ software_component }}-rds-subnet-group'
+      SubnetIds:
+        - !ImportValue '{{ project_id }}-subnet-pri1a'
+        - !ImportValue '{{ project_id }}-subnet-pri1b'
+        - !ImportValue '{{ project_id }}-subnet-pri1c'
+      Tags:
+        - { Key: 'Name', Value: '{{ env }}-{{ project_id }}-{{ software_component }}-rds-subnet-group' }
+        - { Key: 'Project', Value: '{{ project_id }}' }
+        - { Key: 'Environment', Value: '{{ env }}' }
+        - { Key: 'Version', Value: '{{ project_version }}' }
+        - { Key: 'Repository', Value: '{{ git_info.repo_name }}' }
+
+  DatabaseCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      BackupRetentionPeriod: !If [IsProd, 7, 1]
+      DatabaseName: '{{ rds_db_name }}'
+      DBClusterParameterGroupName: 'default.aurora-postgresql12'
+      DBSubnetGroupName: !Ref RdsSubnetGroup
+      DeletionProtection: false
+      EnableIAMDatabaseAuthentication: false
+      Engine: 'aurora-postgresql'
+      MasterUsername: !Ref RdsMasterUsername
+      MasterUserPassword: !Sub "{{ '{{' }}resolve:ssm-secure:${RdsMasterUserPasswordSsmKeyName}:1{{ '}}' }}"
+      Port: '{{ rds_port }}'
+      PreferredBackupWindow: 03:00-04:00
+      PreferredMaintenanceWindow: mon:04:00-mon:05:00
+      RestoreType: 'full-copy'
+      StorageEncrypted: false
+      VpcSecurityGroupIds:
+        - !Ref RdsSecurityGroup
+      Tags:
+        - { Key: 'Name', Value: '{{ env }}-{{ project_id }}-{{ software_component }}-aurora-cluster' }
+        - { Key: 'Project', Value: '{{ project_id }}' }
+        - { Key: 'Environment', Value: '{{ env }}' }
+        - { Key: 'Version', Value: '{{ project_version }}' }
+        - { Key: 'Repository', Value: '{{ git_info.repo_name }}' }
+
+{% for instanceId in range(rds_instances_amount) %}
+  RdsInstance{{ instanceId }}:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      CopyTagsToSnapshot: true
+      DBClusterIdentifier: !Ref DatabaseCluster
+      DBInstanceClass: '{{ rds_instance_class }}'
+      DBSubnetGroupName: !Ref RdsSubnetGroup
+      DeleteAutomatedBackups: true
+      Engine: 'aurora-postgresql'
+      MultiAZ: false  # aurora-postgresql does not need MultiAZ option as it replicates across all AZ anyway
+      EnablePerformanceInsights: !If [IsProd, true, false]
+{% if env == 'prod' %}
+      PerformanceInsightsKMSKeyId: !ImportValue '{{ project_id }}-kms-secrets-key'
+      PerformanceInsightsRetentionPeriod: 7
+{% endif %}
+      PubliclyAccessible: false
+      StorageEncrypted: false
+{% endfor %}
+  # ============================ Public Route 53 ==============================
+
+  RdsPublicDnsCname:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Comment: 'RDS cluster endpoint for {{ software_component }}'
+      HostedZoneId: !Ref RdsRoute53HostedZonePublic
+      Name: !Ref RdsRoute53RecordName
+      ResourceRecords:
+        - !GetAtt DatabaseCluster.Endpoint.Address
+      TTL: 300
+      Type: 'CNAME'
+
+  RdsReadPublicDnsCname:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Comment: 'RDS cluster readonly endpoint for {{ software_component }}'
+      HostedZoneId: !Ref RdsRoute53HostedZonePublic
+      Name: !Ref RdsRoute53ReadRecordName
+      ResourceRecords:
+        - !GetAtt DatabaseCluster.ReadEndpoint.Address
+      TTL: 300
+      Type: 'CNAME'
+
+  # ============================ Private Route 53 ==============================
+
+  RdsPrivateDnsCname:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Comment: 'RDS cluster endpoint for {{ software_component }}'
+      HostedZoneId: !Ref RdsRoute53HostedZonePrivate
+      Name: !Ref RdsRoute53RecordName
+      ResourceRecords:
+        - !GetAtt DatabaseCluster.Endpoint.Address
+      TTL: 300
+      Type: 'CNAME'
+
+  RdsReadPrivateDnsCname:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Comment: 'RDS cluster readonly endpoint for {{ software_component }}'
+      HostedZoneId: !Ref RdsRoute53HostedZonePrivate
+      Name: !Ref RdsRoute53ReadRecordName
+      ResourceRecords:
+        - !GetAtt DatabaseCluster.ReadEndpoint.Address
+      TTL: 300
+      Type: 'CNAME'
+
+
+Outputs:
+
+  RdsDbName:
+    Description: '{{ software_component }} database name'
+    Value: '{{ rds_db_name }}'
+    Export:
+      Name: '{{ project_id }}-{{ software_component }}-rds-db'
+
+  RdsClusterName:
+    Description: '{{ software_component }} RDS cluster name'
+    Value: !Ref DatabaseCluster
+
+  RdsClusterEndpointAddress:
+    Description: 'RDS cluster endpoint for {{ software_component }}'
+    Value: !Ref RdsRoute53RecordName
+    Export:
+      Name: '{{ project_id }}-{{ software_component }}-rds-endpoint'
+
+  RdsClusterEndpointAddressOrig:
+    Description: 'RDS cluster endpoint for {{ software_component }}'
+    Value: !GetAtt DatabaseCluster.Endpoint.Address
+    Export:
+      Name: '{{ project_id }}-{{ software_component }}-rds-endpoint-orig'
+
+  RdsClusterReadEndpointAddress:
+    Description: 'RDS cluster readonly endpoint for {{ software_component }}'
+    Value: !Ref RdsRoute53ReadRecordName
+    Export:
+      Name: '{{ project_id }}-{{ software_component }}-rds-read-endpoint'
+
+  RdsClusterReadEndpointAddressOrig:
+    Description: 'RDS cluster readonly endpoint for {{ software_component }}'
+    Value: !GetAtt DatabaseCluster.ReadEndpoint.Address
+    Export:
+      Name: '{{ project_id }}-{{ software_component }}-rds-read-endpoint-orig'
+
+  RdsClusterEndpointPort:
+    Description: 'RDS instance endpoint port'
+    Value: !GetAtt DatabaseCluster.Endpoint.Port
+    Export:
+      Name: '{{ project_id }}-{{ software_component }}-rds-port'
+
+  RdsSecurityGroup:
+    Description: 'RDS security group'
+    Value: !GetAtt RdsSecurityGroup.GroupId
+    Export:
+      Name: '{{ project_id }}-{{ software_component }}-rds-sg'

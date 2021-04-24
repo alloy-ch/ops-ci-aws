@@ -1,0 +1,65 @@
+---
+
+- name: "[{{ ecr_repository_name }}] check if 'ecr_repository_name' is supplied"
+  fail: msg="missing var 'ecr_repository_name'"
+  when: ecr_repository_name is not defined or ecr_repository_name == ''
+
+- name: '[{{ ecr_repository_name }}] check the common variables'
+  include_tasks: '{{ role_path }}/../../tasks/validate-common-vars.yml'
+
+# if working on a pre-built image, analyze the supplied name
+- name: '[{{ ecr_repository_name }}] get image name and tag for the pre-built image'
+  set_fact:
+    comp_image: '{{ prebuilt_image_tag.split(":")[0] }}'
+    comp_tag: '{{ prebuilt_image_tag.split(":")[1] }}'
+    docker_image_with_tag: '{{ prebuilt_image_tag }}'
+  ignore_errors: true
+  when: prebuilt_image_supplied
+
+- name: "[{{ ecr_repository_name }}] default to 'latest' if the version tag is not supplied"
+  set_fact:
+    comp_tag: 'latest'
+  when: prebuilt_image_supplied and ( comp_tag is not defined or comp_tag == '' )
+
+# if working on a to-be-built image, set the name
+- name: '[{{ ecr_repository_name }}] set image name and tag for the image to be built'
+  set_fact:
+    comp_image: '{{ ecr_repository_name }}'
+    comp_tag: '{{ project_version }}'
+  when: not prebuilt_image_supplied
+
+- name: "[{{ ecr_repository_name }}] assemble the image's name"
+  set_fact:
+    docker_image_with_tag: '{{ comp_image }}:{{ comp_tag }}'
+  when: not prebuilt_image_supplied
+
+- include_tasks: 'setup-registry.yml'
+
+- include_tasks: 'build-image.yml'
+  when: not prebuilt_image_supplied
+
+- name: "[{{ ecr_repository_name }}] assemble the image's full name"
+  set_fact:
+    docker_image_full_name_and_tag: '{{ ecr_registry_uri }}:{{ comp_tag }}'
+
+- name: '[{{ ecr_repository_name }}] tag the image with full name'
+  command: 'docker tag {{ docker_image_with_tag }} {{ docker_image_full_name_and_tag }}'
+  no_log: true
+
+- name: '[{{ ecr_repository_name }}] push image to ECR'
+  shell: 'docker push {{ docker_image_full_name_and_tag }} > /dev/null'
+
+- name: '[{{ ecr_repository_name }}] ad-hoc deployment: use the docker image repo digest'
+  when: adhoc_deploy
+  block:
+    - name: '[{{ ecr_repository_name }}] ad-hoc deployment: get the image repo digest'
+      shell: docker inspect {{ docker_image_full_name_and_tag }} | jq -r '.[0].RepoDigests[0]'
+      register: docker_inspect
+
+    - name: '[{{ ecr_repository_name }}] ad-hoc deployment: use the image repo digest as the docker image'
+      set_fact:
+        docker_image_full_name_and_tag: '{{ docker_inspect.stdout }}'
+
+- name: '[{{ ecr_repository_name }}] show the result'
+  debug:
+    msg: "Docker image is published as '{{ docker_image_full_name_and_tag }}'"

@@ -1,0 +1,26 @@
+---
+
+- name: 'check the common variables'
+  include_tasks: '{{ role_path }}/../../tasks/validate-common-vars.yml'
+
+- name: "check if 'cluster_arn' is supplied"
+  fail:
+    msg: "missing var 'cluster_arn'"
+  when: cluster_arn is not defined or cluster_arn == ''
+
+- name: "check if 'template_file' is supplied"
+  fail:
+    msg: "missing var 'template_file'"
+  when: template_file is not defined or template_file == ''
+
+- name: 'render the configuration template file'
+  template:
+    src: '{{ template_file }}'
+    dest: "{{ workspace_path }}/configuration_template.yml"
+  no_log: true
+
+- debug:
+    msg: 'rendered configuration template: {{ workspace_path }}/configuration_template.yml'
+
+- name: 'apply the configuration'
+  command: 'kubectl --context {{ cluster_arn }} apply -f {{ workspace_path }}/configuration_template.yml'

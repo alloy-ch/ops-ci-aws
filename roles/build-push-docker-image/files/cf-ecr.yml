@@ -1,0 +1,60 @@
+---
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: 'ECR for {{ ecr_repository_name }} (r{{ project_version }})'
+
+
+Resources:
+  EcrRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: '{{ ecr_repository_name }}'
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [{
+              "rulePriority": 10,
+              "description": "Keep only 15 most recent snapshot images",
+              "selection": {
+                "tagStatus": "tagged",
+                "countType": "imageCountMoreThan",
+                "countNumber": 15,
+                "tagPrefixList": [
+                  "snapshot-"
+                ]
+              },
+              "action": {
+                "type": "expire"
+              }
+            },
+            {
+              "rulePriority": 100,
+              "description": "Expire old untagged images after one week",
+              "selection": {
+                "tagStatus": "untagged",
+                "countType": "sinceImagePushed",
+                "countNumber": 7,
+                "countUnit": "days"
+              },
+              "action": {
+                "type": "expire"
+              }
+            }]
+          }
+      Tags:
+        - { Key: 'Name', Value: '{{ ecr_repository_name }}-ecr' }
+        - { Key: 'Project', Value: '{{ project_id }}' }
+        - { Key: 'Environment', Value: '{{ env }}' }
+        - { Key: 'Version', Value: '{{ project_version }}' }
+        - { Key: 'Repository', Value: '{{ git_info.repo_name }}' }
+
+
+Outputs:
+
+  EcrRepositoryName:
+    Description: 'Name of the repository in ECR'
+    Value: !Ref EcrRepository
+
+  EcrRepositoryUrl:
+    Description: 'URL of the container repository'
+    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrRepository}'

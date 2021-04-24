@@ -1,0 +1,5 @@
+---
+
+region: '{{ aws_region }}'
+template_parameters: {}
+infrastructure_bucket_override: ''
