@@ -1,6 +1,6 @@
 # ops-aws-cicd
 
-**Current version: 0.0.0**
+**Current version: 0.0.1**
 
 This repository holds the shared Ansible roles, modules and tasks for projects to be deployed into AWS. It creates an Ansible collection.
 
