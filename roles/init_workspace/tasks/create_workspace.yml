@@ -1,0 +1,36 @@
+---
+
+- name: 'check the common variables'
+  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
+
+- name: 'create temporary workspace directory'
+  tempfile:
+    state: 'directory'
+    suffix: '.{{ project_id }}'
+  register: r_workspace
+
+- set_fact:
+    workspace_path: '{{ r_workspace.path }}'
+
+- name: 'initialize virtualenv and update pip'
+  pip:
+    extra_args: '-U'
+    name: 'pip'
+    virtualenv: '{{ workspace_path }}/venv'
+    virtualenv_python: 'python3'
+  when: python3_workspace
+
+- name: 'eks-specific setup'
+  when: use_eks | default(false) | bool
+  block:
+    # it can happen that when initializing the workspace the EKS cluster has not been created, so ignore errors
+    - name: 'update kubeconfig'
+      command: aws --region {{ aws_region }} eks update-kubeconfig --name {{ env }}-{{ project_id }}-eks
+      ignore_errors: true
+      when: env != 'ops'
+    - name: 'protect Kubernetes configuration file'
+      file:
+        path: /root/.kube/config
+        mode: '0600'
+      ignore_errors: true
+      when: env != 'ops'

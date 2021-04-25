@@ -1,6 +1,6 @@
 ---
 
-- name: "check if all the mandatory variables are supplied"
+- name: 'check if all the mandatory variables are supplied'
   fail:
     msg: "at least one of ['git_info','env','aws_region','project_id','project_version','software_component'] is missing"
   when: git_info is not defined or git_info.repo_name is not defined or git_info.repo_name == '' or
@@ -9,3 +9,12 @@
         project_id is not defined or project_id == '' or
         project_version is not defined or project_version == '' or
         software_component is not defined or software_component == ''
+
+- name: 'get the environment code from AWS account'
+  set_fact:
+    env_aws: "{{ lookup('aws_ssm', '/rcplus/environment', region=aws_region) }}"
+
+- name: 'fail the process in case of environment mismatch'
+  when: env_aws != env
+  fail:
+    msg: "Ansible playbook is running with environment '{{ env }}' against AWS account for environment '{{ env_aws }}'"
