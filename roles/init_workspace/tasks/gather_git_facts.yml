@@ -1,4 +1,56 @@
 ---
 
-python3_workspace: false
-use_eks: false
+- name: 'check if the task is executed from within a git repo'
+  shell: |-
+    if git rev-parse --is-inside-work-tree > /dev/null 2>&1;
+    then
+      echo "true"
+    else
+      echo "false"
+    fi
+  register: r_git_repo_check
+  no_log: true
+
+- set_fact:
+    is_within_git_repo: '{{ r_git_repo_check.stdout }}'
+
+- name: 'gather git repository info'
+  block:
+    - name: 'get git repo name'
+      shell: basename -s .git $(git config --get remote.origin.url)
+      register: r_git_repo_name
+      no_log: true
+
+    - name: 'get HEAD commit hash (full)'
+      command: git rev-parse HEAD
+      register: r_git_commit_hash
+      no_log: true
+
+    - name: 'get HEAD commit hash (short)'
+      command: git rev-parse --short HEAD
+      register: r_git_commit_hash_short
+      no_log: true
+
+    - name: 'check pending changes'
+      shell: "[[ -z $(git status -s --untracked-files=no) ]] || echo 'dirty'"
+      register: r_git_short_status
+      no_log: true
+
+    - name: 'get current git branch name'
+      command: git rev-parse --abbrev-ref HEAD
+      register: r_git_branch
+      no_log: true
+
+    - set_fact:
+        git_info:
+          repo_name: '{{ r_git_repo_name.stdout }}'
+          branch_name: '{{ r_git_branch.stdout }}'
+          commit_hash: '{{ r_git_commit_hash.stdout }}'
+          commit_hash_short: '{{ r_git_commit_hash_short.stdout }}'
+          has_pending_changes: "{{ r_git_short_status.stdout == 'dirty' }}"
+  when: is_within_git_repo
+
+- name: 'create an empty git repository info dict'
+  set_fact:
+    git_info: {}
+  when: not is_within_git_repo

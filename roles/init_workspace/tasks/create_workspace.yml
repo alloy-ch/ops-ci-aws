@@ -18,7 +18,7 @@
     name: 'pip'
     virtualenv: '{{ workspace_path }}/venv'
     virtualenv_python: 'python3'
-  when: python3_workspace
+  when: python3_workspace | default(false) | bool
 
 - name: 'eks-specific setup'
   when: use_eks | default(false) | bool
