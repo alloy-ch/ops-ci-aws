@@ -10,7 +10,7 @@
 
 - name: '[{{ ecr_repository_name }}] deploy the ECR stack'
   include_role:
-    name: 'run-cloudformation'
+    name: 'run_cloudformation'
   vars:
     stack_name: '{{ ecr_stack_name }}'
     template: '{{ cf_ecr_template }}'

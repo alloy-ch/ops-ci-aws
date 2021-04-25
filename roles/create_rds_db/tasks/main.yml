@@ -3,7 +3,7 @@
 # ====================== Check that all the required parameters are provided ===================
 
 - name: '[{{ software_component }}] check the common variables'
-  include_tasks: '{{ role_path }}/../../tasks/validate-common-vars.yml'
+  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
 
 - name: "[{{ software_component }}] check if 'software_component' is supplied"
   fail: msg="missing var 'software_component'"
@@ -74,7 +74,7 @@
     template_filename: '{{ role_path }}/files/cf-rds.yml'
 
 - include_role:
-    name: 'run-cloudformation'
+    name: 'run_cloudformation'
   vars:
     stack_name: '{{ env }}-{{ project_id }}-{{ software_component }}-rds'
     template: '{{ template_filename }}'
@@ -127,7 +127,7 @@
     " postgresql://{{ rds_username }}@{{ rds_endpoint }}:{{ rds_port }}/{{ rds_db_name }}
 
 - include_role:
-    name: 'create-db-user'
+    name: 'create_db_user'
   vars:
     app_db_username: '{{ readonly_user_name }}'
     ssmkey_rds_app_user_username_key: '{{ ssmkey_rds_readonly_username_key }}'

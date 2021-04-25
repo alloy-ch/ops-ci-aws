@@ -3,7 +3,7 @@
 # ====================== Check that all the required parameters are provided ===================
 
 - name: '[{{ rds_db_name }}.{{ app_db_username }}] check the common variables'
-  include_tasks: '{{ role_path }}/../../tasks/validate-common-vars.yml'
+  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
 
 - name: "[{{ rds_db_name }}.{{ app_db_username }}] check if 'app_db_username' is supplied"
   fail: msg="missing var 'app_db_username'"
