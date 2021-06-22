@@ -84,8 +84,9 @@
        --output-template-file {{ workspace_path }}/cloudformation-final.yml
        --s3-bucket {{ deployment_bucket }}
        --s3-prefix {{ git_info.repo_name }}
-       --region {{ region }} > /dev/null
+       --region {{ region }}
   when: is_sam_required
+  no_log: true
 
 - name: '[{{ stack_name }}] in case of classical CloudFormation template: copy'
   command: cp {{ workspace_path }}/cloudformation.yml {{ workspace_path }}/cloudformation-final.yml
