@@ -1,4 +1,4 @@
-# ops-aws-cicd
+# ops-ci-aws
 
 **Current version: 1.0.6**
 
@@ -11,17 +11,17 @@ use the direct git approach.
 
 To install the latest version from the default branch:
 ```shell-script
-ansible-galaxy collection install git+https://github.com/ringier-data/ops-aws-cicd.git
+ansible-galaxy collection install git+https://github.com/ringier-data/ops-ci-aws.git
 ```
 
 To install a specific tagged version:
 ```shell-script
-ansible-galaxy collection install git+https://github.com/ringier-data/ops-aws-cicd.git,r2.3.1
+ansible-galaxy collection install git+https://github.com/ringier-data/ops-ci-aws.git,r2.3.1
 ```
 
 To install a specific git commit:
 ```shell-script
-ansible-galaxy collection install git+https://github.com/ringier-data/ops-aws-cicd.git,7b60ddc245bc416b72d8ea6ed7b799885110f5e5
+ansible-galaxy collection install git+https://github.com/ringier-data/ops-ci-aws.git,7b60ddc245bc416b72d8ea6ed7b799885110f5e5
 ```
 
 ## Troubleshooting
