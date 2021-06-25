@@ -59,3 +59,4 @@ build_ignore:
   - .bumpsemver.cfg
   - .idea
   - .vscode
+  - doc_images

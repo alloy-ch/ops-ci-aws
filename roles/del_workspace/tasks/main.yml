@@ -8,10 +8,3 @@
     path: '{{ workspace_path }}'
     state: 'absent'
   when: workspace_path is defined
-
-- name: 'delete temporary files created with hard-coded path'
-  file:
-    path: '{{ item }}'
-    state: 'absent'
-  loop:
-    - '/tmp/github_ci_repositories.json'

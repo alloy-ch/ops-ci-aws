@@ -18,7 +18,7 @@
 - name: 'check if there already exists an ACM certificate for {{ base_domain }}'
   command: >-
     aws --region {{ acm_region }} acm list-certificates \
-      --query 'CertificateSummaryList[?DomainName==`*.{{base_domain}}`].[CertificateArn]'  \
+      --query 'CertificateSummaryList[?DomainName==`*.{{ base_domain }}`].[CertificateArn]'  \
       --output text
   register: result
 
@@ -72,7 +72,7 @@
   name: 'get ACM validation DNS name and value'
   shell: >-
     aws --region {{ acm_region }} acm describe-certificate  \
-      --certificate-arn {{acm_arn}}  \
+      --certificate-arn {{ acm_arn }}  \
       --query 'Certificate.DomainValidationOptions[0].ResourceRecord'  \
       --output json  \
     | jq -crM '.Name, .Value '
@@ -88,8 +88,8 @@
   name: 'getting current Route53 validation records'
   command: >-
     aws --region {{ route53_region }} route53 list-resource-record-sets  \
-      --hosted-zone-id {{route53_public_hosted_zone}}  \
-      --query 'ResourceRecordSets[?Name==`{{acm_dns_name}}`].ResourceRecords[].Value'  \
+      --hosted-zone-id {{ route53_public_hosted_zone }}  \
+      --query 'ResourceRecordSets[?Name==`{{ acm_dns_name }}`].ResourceRecords[].Value'  \
       --output text  \
       --no-paginate
   register: result
@@ -103,7 +103,7 @@
   name: 'get ACM validation DNS name and value'
   shell: >-
     aws --region {{ acm_region }} acm describe-certificate  \
-      --certificate-arn {{acm_arn}}  \
+      --certificate-arn {{ acm_arn }}  \
       --query 'Certificate.DomainValidationOptions[0].ResourceRecord'  \
       --output json  \
     | jq -crM '{ Name: .Name, TTL: 300, Type: .Type, ResourceRecords: [ {Value: .Value}] }'
@@ -132,10 +132,10 @@
   name: 'wait for Route53 record-set creation'
   command: >-
     aws --region {{ route53_region }} route53 wait resource-record-sets-changed  \
-      --id {{result.stdout}}
+      --id {{ result.stdout }}
 
 - when: acm_needs_validation
   name: 'wait for ACM certificate validation'
   command: >-
     aws --region {{ acm_region }} acm wait certificate-validated   \
-      --certificate-arn {{acm_arn}}
+      --certificate-arn {{ acm_arn }}
