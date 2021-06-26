@@ -94,7 +94,7 @@
 # ======================  Post-processing  ===================
 
 - name: '[{{ software_component }}] build PostgreSQL client Docker image'
-  command: docker build -t psql-client -f {{ role_path }}/../../misc/docker/Dockerfile.psql-client .
+  command: docker build -t psql-client -f {{ playbook_dir }}/../ops-ci-shared/misc/docker/Dockerfile.psql-client .
 
 - name: '[{{ software_component }}] gather RDS stack outputs'
   gather_stack_outputs:
