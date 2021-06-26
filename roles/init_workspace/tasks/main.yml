@@ -1,7 +1,11 @@
 ---
+- name: 'store the home region'
+  set_fact:
+    home_aws_region: '{{ aws_region }}'
+
 - import_tasks: 'gather_git_facts.yml'
 
-- name: '[{{ stack_name }}] check the common variables'
+- name: 'check the common variables'
   include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
 
 - import_tasks: 'create_workspace.yml'
