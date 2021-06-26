@@ -10,9 +10,20 @@
         project_version is not defined or project_version == '' or
         software_component is not defined or software_component == ''
 
+- name: 'store the home region if required'
+  # [NOTE-zw] in rare cases we need to deploy CloudFormation stack, for instances to work with CloudFront with ACM certificate, the
+  # resources have to be in `us-east-1`. Therefore, we need a mechanism to store the "home" region, so that we do not have to put the
+  # SSM Parameter `/ops-ci/environment` in all the regions we touch. In the standard process, Ansible role `init_workspace` sets the
+  # `home_aws_region` to the value of `aws_region`. Normally that is the very first role an Ansible play uses. The role itself does not
+  # touch any AWS resources, which makes `init_workspace` the perfect place to copy `aws_region` to `home_aws_region`.
+  # If the development standard is followed, the condition below should not be true.
+  set_fact:
+    home_aws_region: '{{ aws_region }}'
+  when: home_aws_region is not defined or home_aws_region == ''
+
 - name: 'get the environment code from AWS account'
   set_fact:
-    env_aws: "{{ lookup('aws_ssm', '/ops-ci/environment', region=aws_region) }}"
+    env_aws: "{{ lookup('aws_ssm', '/ops-ci/environment', region=home_aws_region) }}"
 
 - name: 'fail the process in case of environment mismatch'
   when: env_aws != env

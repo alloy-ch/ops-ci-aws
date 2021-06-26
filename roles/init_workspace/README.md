@@ -15,10 +15,12 @@ This Ansible role:
 
 ## Outputs
 
-| Ansible variable | Type | Description                     |
-|:-----------------|:-----|:--------------------------------|
-| `workspace_path` | str  | Path of the temporary workspace |
-| `git_info`       | dict | See below for more details      |
+| Ansible variable  | Type | Description                     |
+|:------------------|:-----|:--------------------------------|
+| `workspace_path`  | str  | Path of the temporary workspace |
+| `git_info`        | dict | See below for more details      |
+| `home_aws_region` | str  | A copy of `aws_region`          |
+
 
 `git_info` is a `dict` with the following key-pairs:
 *  `repo_name`: name of the repository, without Github organization prefix
