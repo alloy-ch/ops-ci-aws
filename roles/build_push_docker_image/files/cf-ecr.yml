@@ -1,7 +1,7 @@
 ---
 
 AWSTemplateFormatVersion: 2010-09-09
-Description: 'ECR for {{ ecr_repository_name }} (r{{ project_version }})'
+Description: 'ECR for {{ ecr_repository_name }} (v{{ project_version }})'
 
 
 Resources:

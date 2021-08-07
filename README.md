@@ -1,6 +1,6 @@
 # ops-ci-aws
 
-**Current version: 1.1.5**
+**Current version: v1.1.5**
 
 This repository holds the shared Ansible roles, modules and tasks for projects to be deployed into AWS. It creates an Ansible collection.
 
@@ -38,7 +38,7 @@ ansible-galaxy collection install git+https://github.com/ringier-data/ops-ci-aws
 
 To install a specific tagged version:
 ```shell-script
-ansible-galaxy collection install git+https://github.com/ringier-data/ops-ci-aws.git,r2.3.1
+ansible-galaxy collection install git+https://github.com/ringier-data/ops-ci-aws.git,v2.3.1
 ```
 
 To install a specific git commit:
