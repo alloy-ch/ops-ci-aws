@@ -1,6 +1,6 @@
 # ops-ci-aws
 
-**Current version: v1.1.6**
+**Current version: v1.1.7**
 
 This repository holds the shared Ansible roles, modules and tasks for projects to be deployed into AWS. It creates an Ansible collection.
 
@@ -50,7 +50,7 @@ ansible-galaxy collection install git+https://github.com/ringier-data/ops-ci-aws
 
 A typical Ansible playbook looks like:
 
-```ansible
+```yaml
 ---
   - name: 'create CodeBuild projects'  # meaningful name defines the repo
     hosts: 'localhost'    # always localhost, we do not use the remote agent setup of Ansible 
@@ -60,7 +60,7 @@ A typical Ansible playbook looks like:
     vars:
       aws_region: 'eu-central-1'    # where the deployment target is located
       project_id: 'rcplus'          # project code. In our terminology, "project" is a very big thing (normally multi-year-multi-million)
-      project_version: 1.0.3        # semver of the repo. Normally managed by PyPI package `bumpsemver`  
+      project_version: 1.0.3        # semver of the repo. Normally managed by PyPI package `bumpsemver`. NOTE: do NOT put any version prefix here
       software_component: 'devops'  # a code to help identify the purpose of repo. e.g. `basis`, `iris`, `foobar` etc.  
     pre_tasks:
       - fail: msg='specify an environment (dev, stg, prod, ops)'

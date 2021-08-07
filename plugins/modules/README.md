@@ -13,7 +13,7 @@ With the following Ansible task:
   name: 'get storage stack'
   gather_stack_outputs:
     stack_name: 'prod-sherlock-api-storage'
-    region: 'eu-west-1'
+    region: 'eu-central-1'
   register: storage_stack
 ```
 on CloudFormation stack `prod-sherlock-api-storage`:
