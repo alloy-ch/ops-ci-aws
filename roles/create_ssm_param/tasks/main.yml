@@ -35,5 +35,5 @@
              Key=Project,Value='{{ project_id }}'  \
              Key=Environment,Value='{{ env }}'  \
              Key=Repository,Value='{{ git_info.repo_name }}'  \
-             Key=Version,Value='{{ project_version }}'
+             Key=Version,Value='v{{ project_version }}'
   when: current_param_value != new_param_value

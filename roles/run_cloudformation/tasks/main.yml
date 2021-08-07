@@ -109,6 +109,6 @@
         Environment="{{ env }}"
         Name="{{ stack_name }}"
         Project="{{ project_id }}"
-        Version="{{ project_version }}"
+        Version="v{{ project_version }}"
         Repository="{{ git_info.repo_name }}"
       --no-fail-on-empty-changeset
