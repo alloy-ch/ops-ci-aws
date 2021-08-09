@@ -3,22 +3,42 @@
 - name: 'check the common variables'
   include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
 
-- fail:
+- name: "check manadatory param 'acm_region'"
+  fail:
     msg: "missing var 'acm_region'"
   when: acm_region is not defined or acm_region == ''
 
-- fail:
+- name: "check manadatory param 'route53_region'"
+  fail:
     msg: "missing var 'route53_region'"
   when: route53_region is not defined or route53_region == ''
 
-- fail:
-    msg: "missing var 'base_domain'"
-  when: base_domain is not defined or base_domain == ''
+- name: "default 'domain_name' to 'base_domain' if needed"
+  set_fact:
+    domain_name: '{{ base_domain }}'
+  when: domain_name is not defined or domain_name == ''
 
-- name: 'check if there already exists an ACM certificate for {{ base_domain }}'
+- name: "check if either 'domain_name' or 'base_domain' is set"
+  fail:
+    msg: "missing var 'domain_name'"
+  when: domain_name is not defined or domain_name == ''
+
+- name: 'set display name for single-domain certificate'
+  set_fact:
+    target_domain_display_name: '{{ domain_name }}'
+    target_domain_name: '{{ domain_name }}'
+  when: not ( is_wildcard | default(true) | bool )
+
+- name: "set display name for wildcard certificate, and adjust 'domain_name' for wildcard certificate"
+  set_fact:
+    target_domain_display_name: 'star-{{ domain_name }}'
+    target_domain_name: '*.{{ domain_name }}'
+  when: is_wildcard | default(true) | bool
+
+- name: 'check if there already exists an ACM certificate for {{ target_domain_name }}'
   command: >-
     aws --region {{ acm_region }} acm list-certificates \
-      --query 'CertificateSummaryList[?DomainName==`*.{{ base_domain }}`].[CertificateArn]'  \
+      --query 'CertificateSummaryList[?DomainName==`{{ target_domain_name }}`].[CertificateArn]'  \
       --output text
   register: result
 
@@ -30,9 +50,9 @@
   name: 'create ACM certificate'
   command: >-
     aws --region {{ acm_region }} acm request-certificate  \
-      --domain-name "*.{{ base_domain }}"  \
+      --domain-name "{{ target_domain_name }}"  \
       --validation-method DNS  \
-      --tags Key=Name,Value='{{ env }}-cert-{{ base_domain }}'  \
+      --tags Key=Name,Value='{{ env }}-cert-{{ target_domain_display_name }}'  \
              Key=Project,Value='{{ project_id }}'  \
              Key=Environment,Value='{{ env }}'  \
              Key=Repository,Value='{{ git_info.repo_name }}'  \
@@ -53,89 +73,6 @@
   register: result
   failed_when: "'PENDING_VALIDATION' not in result.stdout and 'SUCCESS' not in result.stdout"
 
-- set_fact:
-    acm_needs_validation: "{{ result.stdout == 'PENDING_VALIDATION' }}"
-
-- when: acm_needs_validation
-  name: 'get Route53 stack'
-  gather_stack_outputs:
-    stack_name: '{{ env }}-{{ project_id }}-route53'
-    region: '{{ route53_region }}'
-  register: route53_stack
-
-- when: acm_needs_validation
-  name: 'get public hosted zone from Route53'
-  set_fact:
-    route53_public_hosted_zone: '{{ route53_stack.outputs.PublicHostedZoneId }}'
-
-- when: acm_needs_validation
-  name: 'get ACM validation DNS name and value'
-  shell: >-
-    aws --region {{ acm_region }} acm describe-certificate  \
-      --certificate-arn {{ acm_arn }}  \
-      --query 'Certificate.DomainValidationOptions[0].ResourceRecord'  \
-      --output json  \
-    | jq -crM '.Name, .Value '
-  register: acm_validation_resource_record_set_details
-
-- when: acm_needs_validation
-  name: 'extract DNS details'
-  set_fact:
-    acm_dns_name: '{{ acm_validation_resource_record_set_details.stdout_lines[0] }}'
-    acm_dns_value: '{{ acm_validation_resource_record_set_details.stdout_lines[1] }}'
-
-- when: acm_needs_validation
-  name: 'getting current Route53 validation records'
-  command: >-
-    aws --region {{ route53_region }} route53 list-resource-record-sets  \
-      --hosted-zone-id {{ route53_public_hosted_zone }}  \
-      --query 'ResourceRecordSets[?Name==`{{ acm_dns_name }}`].ResourceRecords[].Value'  \
-      --output text  \
-      --no-paginate
-  register: result
-
-- when: acm_needs_validation
-  name: 'evaluating if Route53 records needs to be created'
-  set_fact:
-    should_create_route53_record: '{{ acm_dns_value not in result.stdout }}'
-
-- when: acm_needs_validation and should_create_route53_record
-  name: 'get ACM validation DNS name and value'
-  shell: >-
-    aws --region {{ acm_region }} acm describe-certificate  \
-      --certificate-arn {{ acm_arn }}  \
-      --query 'Certificate.DomainValidationOptions[0].ResourceRecord'  \
-      --output json  \
-    | jq -crM '{ Name: .Name, TTL: 300, Type: .Type, ResourceRecords: [ {Value: .Value}] }'
-  register: acm_validation_resource_record_set
-
-- when: acm_needs_validation and should_create_route53_record
-  name: 'creating Route53 record-set for ACM DNS validation'
-  command: >-
-    aws --region {{ route53_region }} route53 change-resource-record-sets  \
-      --query 'ChangeInfo.Id'  \
-      --hosted-zone-id {{ route53_public_hosted_zone }}  \
-      --output text  \
-      --change-batch '
-      {
-        "Comment": "Delete ACM validation record",
-        "Changes": [
-            {
-                "Action": "CREATE",
-                "ResourceRecordSet": {{ acm_validation_resource_record_set.stdout }}
-            }
-        ]
-      }'
-  register: result
-
-- when: acm_needs_validation and should_create_route53_record
-  name: 'wait for Route53 record-set creation'
-  command: >-
-    aws --region {{ route53_region }} route53 wait resource-record-sets-changed  \
-      --id {{ result.stdout }}
-
-- when: acm_needs_validation
-  name: 'wait for ACM certificate validation'
-  command: >-
-    aws --region {{ acm_region }} acm wait certificate-validated   \
-      --certificate-arn {{ acm_arn }}
+- name: 'validate if needed'
+  when: result.stdout == 'PENDING_VALIDATION'
+  include_tasks: 'validation.yml'
