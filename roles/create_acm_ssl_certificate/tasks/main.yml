@@ -60,18 +60,11 @@
   set_fact:
     domain_name_kebab_case: "{{ target_domain_display_name | replace('.', '-') }}"
 
-- name: 'switch to the acm_region'
-  set_fact:
-    aws_region: '{{ acm_region }}'
-
 - name: 'create certificates'
-  import_role:
+  include_role:
     name: 'ringier.aws_cicd.run_cloudformation'
   vars:
     stack_name: '{{ env }}-{{ project_id }}-certificate-{{ domain_name_kebab_case }}'
+    aws_region: '{{ acm_region }}'
     template: '{{ cloudformation_template }}'
     template_parameters: {}
-
-- name: 'restore to the home region'
-  set_fact:
-    aws_region: '{{ home_aws_region }}'
