@@ -1,0 +1,34 @@
+---
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: ACM Certificate for {{ target_domain_name }} (v{{ project_version }})
+
+Resources:
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: '{{ target_domain_name }}'
+      DomainValidationOptions: 
+        - DomainName: '{{ target_domain_name }}'
+          HostedZoneId: '{{ route53_zone_id }}'
+{% if is_wildcard | default(true) | bool %}
+      SubjectAlternativeNames:
+        - '{{ domain_name }}'
+{% endif %}
+      ValidationMethod: DNS
+      Tags:
+        - { Key: 'Name', Value: '{{ env }}-{{ project_id }}-certificate-{{ target_domain_display_name }}' }
+        - { Key: 'Project', Value: '{{ project_id }}' }
+        - { Key: 'Environment', Value: '{{ env }}' }
+        - { Key: 'Version', Value: 'v{{ project_version }}' }
+        - { Key: 'Repository', Value: '{{ git_info.repo_name }}' }
+
+
+Outputs:
+
+  CertificateArn:
+    Description: The ARN of the certificate for the {{ target_domain_name }} domain
+    Value: !Ref Certificate
+    Export:
+      Name: '{{ project_id }}-certificate-{{ export_id }}'
