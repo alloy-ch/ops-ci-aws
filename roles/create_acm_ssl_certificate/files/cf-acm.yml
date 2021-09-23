@@ -12,6 +12,10 @@ Resources:
       DomainValidationOptions: 
         - DomainName: '{{ target_domain_name }}'
           HostedZoneId: '{{ route53_zone_id }}'
+{% if is_wildcard | default(true) | bool %}
+      SubjectAlternativeNames:
+        -'{{ domain_name }}'
+{% endif %}
       ValidationMethod: DNS
       Tags:
         - { Key: 'Name', Value: '{{ env }}-certificate-{{ target_domain_display_name }}' }
