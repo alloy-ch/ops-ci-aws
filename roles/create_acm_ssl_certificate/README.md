@@ -18,6 +18,7 @@ are true:
 | `domain_name`     |    No     | str  | `{{ base_domain }}`                                                       | The domain name which requires the SSL certificate            |
 | `is_wildcard`     |    No     | bool | `True`                                                                    | If true, create a wildcard certificate                        |
 | `route53_zone_id` |    No     | str  | Output `PublicHostedZoneId` of stack `{{ env }}-{{ project_id }}-route53` |                                                               |
+| `export_id`       |    Yes    | str  | -                                                                         | The identifier to assemble the export name                    |
 
 NOTE:
 *  concerning `acm_region` and `route53_region`, in general we do not deal with multiple AWS regions. However, if an SSL certificate is
@@ -26,6 +27,9 @@ NOTE:
    `is_wildcard`. If `is_wildcard` is not defined or has a truthy value, this role appends a wildcard prefix to `domain_name`. e.g.:
    *  `domain_name: 'rcplus.io'` without `is_wildcard` results in a wildcard certificate for domain `*.rcplus.io`
    *  `domain_name: 'www.rcplus.io'` and `is_wildcard: False` yields to a single-domain certificate for `www.rcplus.io`
+*  concerning `export_id`, it is in kebab-case, following the CloudFormation export identifier pattern (consist only of alphanumeric
+   characters, colons, or hyphens.). The final export name will be `{{ project_id }}-certificate-{{ export_id }}`. e.g.
+   `rcplus-certificate-domain-wildcard`
 *  **CAUTION**: this Ansible role handles domain-ownership verification using DNS method. It waits for the verification endlessly, well,
    until Ansible play timeout. Therefore, to avoid running into a dead-end, it is very important to make sure that the specified domain
    has a Route53 zone opens to the public internet, and the current user/role has the permission to create/delete entries in the zone.

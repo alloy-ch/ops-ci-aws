@@ -27,4 +27,4 @@ Outputs:
     Description: The ARN of the certificate for the {{ target_domain_name }} domain
     Value: !Ref Certificate
     Export:
-      Name: '{{ project_id }}-certificate-{{ target_domain_display_name }}'
+      Name: '{{ project_id }}-certificate-{{ export_id }}'

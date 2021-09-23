@@ -3,6 +3,11 @@
 - name: 'check the common variables'
   include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
 
+- name: "check manadatory param 'export_id'"
+  fail:
+    msg: "missing var 'export_id'"
+  when: export_id is not defined or export_id == ''
+
 - name: "check if either 'domain_name' or 'base_domain' is set"
   fail:
     msg: "missing var 'domain_name'"
@@ -51,10 +56,14 @@
   set_fact:
     cloudformation_template: '{{ role_path }}/files/cf-acm.yml'
 
+- name: 'convert the domain name to match cloudformation stack naming pattern'
+  set_fact:
+    domain_name_snake_case: "{{ target_domain_display_name | replace('.', '-') }}"
+
 - name: 'create certificates'
   import_role:
     name: 'ringier.aws_cicd.run_cloudformation'
   vars:
-    stack_name: '{{ env }}-{{ project_id }}-certificate-{{ target_domain_display_name }}'
+    stack_name: '{{ env }}-{{ project_id }}-certificate-{{ domain_name_snake_case }}'
     template: '{{ cloudformation_template }}'
     template_parameters: {}
