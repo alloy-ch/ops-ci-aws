@@ -3,14 +3,19 @@
 - name: 'check the common variables'
   include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
 
-- name: "check manadatory param 'acm_region'"
+- name: "check if either 'domain_name' or 'base_domain' is set"
   fail:
-    msg: "missing var 'acm_region'"
+    msg: "missing var 'domain_name'"
+  when: domain_name is not defined or domain_name == ''
+
+- name: "default 'acm_region' to 'aws_region' if needed"
+  set_fact:
+    acm_region: '{{ aws_region }}'
   when: acm_region is not defined or acm_region == ''
 
-- name: "check manadatory param 'route53_region'"
-  fail:
-    msg: "missing var 'route53_region'"
+- name: "default 'route53_region' to 'aws_region' if needed"
+  set_fact:
+    route53_region: '{{ aws_region }}'
   when: route53_region is not defined or route53_region == ''
 
 - name: "default 'domain_name' to 'base_domain' if needed"
@@ -18,10 +23,17 @@
     domain_name: '{{ base_domain }}'
   when: domain_name is not defined or domain_name == ''
 
-- name: "check if either 'domain_name' or 'base_domain' is set"
-  fail:
-    msg: "missing var 'domain_name'"
-  when: domain_name is not defined or domain_name == ''
+- name: 'get default Route53 zone id if needed'
+  when: route53_zone_id is not defined or route53_zone_id == ''
+  block:
+    - name: 'get Route53 stack'
+      ringier.aws_cicd.gather_stack_outputs:
+        stack_name: '{{ env }}-{{ project_id }}-route53'
+        region: '{{ route53_region }}'
+      register: route53_stack
+    - name: 'get public hosted zone from Route53'
+      set_fact:
+        route53_zone_id: '{{ route53_stack.outputs.PublicHostedZoneId }}'
 
 - name: 'set display name for single-domain certificate'
   set_fact:
@@ -35,44 +47,14 @@
     target_domain_name: '*.{{ domain_name }}'
   when: is_wildcard | default(true) | bool
 
-- name: 'check if there already exists an ACM certificate for {{ target_domain_name }}'
-  command: >-
-    aws --region {{ acm_region }} acm list-certificates \
-      --query 'CertificateSummaryList[?DomainName==`{{ target_domain_name }}`].[CertificateArn]'  \
-      --output text
-  register: result
-
-- set_fact:
-    acm_should_be_created: "{{ 'arn:aws:acm:' not in result.stdout }}"
-    acm_arn: '{{ result.stdout }}'
-
-- when: acm_should_be_created
-  name: 'create ACM certificate'
-  command: >-
-    aws --region {{ acm_region }} acm request-certificate  \
-      --domain-name "{{ target_domain_name }}"  \
-      --validation-method DNS  \
-      --tags Key=Name,Value='{{ env }}-cert-{{ target_domain_display_name }}'  \
-             Key=Project,Value='{{ project_id }}'  \
-             Key=Environment,Value='{{ env }}'  \
-             Key=Repository,Value='{{ git_info.repo_name }}'  \
-             Key=Version,Value='v{{ project_version }}'  \
-      --output text
-  register: result
-
-- when: acm_should_be_created
+- name: 'set cloudformation template'
   set_fact:
-    acm_arn: '{{ result.stdout }}'
+    cloudformation_template: '{{ role_path }}/files/cf-acm.yml'
 
-- name: 'check if certificate is validated'
-  command: >-
-    aws --region {{ acm_region }} acm describe-certificate  \
-      --certificate-arn {{ acm_arn }}  \
-      --query 'Certificate.DomainValidationOptions[0].ValidationStatus'  \
-      --output text
-  register: result
-  failed_when: "'PENDING_VALIDATION' not in result.stdout and 'SUCCESS' not in result.stdout"
-
-- name: 'validate if needed'
-  when: result.stdout == 'PENDING_VALIDATION'
-  include_tasks: 'validation.yml'
+- name: 'create certificates'
+  import_role:
+    name: 'ringier.aws_cicd.run_cloudformation'
+  vars:
+    stack_name: '{{ env }}-{{ project_id }}-certificate-{{ target_domain_display_name }}'
+    template: '{{ cloudformation_template }}'
+    template_parameters: {}

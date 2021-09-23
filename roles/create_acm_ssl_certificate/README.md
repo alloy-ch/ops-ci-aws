@@ -1,16 +1,20 @@
 # Ansible Role: `create_acm_ssl_certificate`
 
-This Ansible role creates a certificate for the specific domain with AWS Certificate Manager if it does not exist, the domain name can be  
+This Ansible role creates a certificate for the specific domain with AWS Certificate Manager if it does not exist, the domain name can be
 FQDN or wildcard domain.
 
-This role automatically handles the domain name ownership verification (via DNS validation method).
+This role automatically handles the domain name ownership verification (via DNS validation method) if (and only if) both of the following
+are true:
+*  The certificate domain is hosted in Amazon Route 53
+*  The domain resides in your AWS account
+
 
 ## Parameters
 
 | Param             | Mandatory | Type | Default                                                                   | Description                                                   |
 |:------------------|:---------:|:----:|:--------------------------------------------------------------------------|:--------------------------------------------------------------|
-| `acm_region`      |    Yes    | str  | -                                                                         | The AWS region in which the SSL certificate should be created |
-| `route53_region`  |    Yes    | str  | -                                                                         | The AWS region in which the Route53 zone is located           |
+| `acm_region`      |    No     | str  | `{{ aws_region }}`                                                        | The AWS region in which the SSL certificate should be created |
+| `route53_region`  |    No     | str  | `{{ aws_region }}`                                                        | The AWS region in which the Route53 zone is located           |
 | `domain_name`     |    No     | str  | `{{ base_domain }}`                                                       | The domain name which requires the SSL certificate            |
 | `is_wildcard`     |    No     | bool | `True`                                                                    | If true, create a wildcard certificate                        |
 | `route53_zone_id` |    No     | str  | Output `PublicHostedZoneId` of stack `{{ env }}-{{ project_id }}-route53` |                                                               |
@@ -24,7 +28,7 @@ NOTE:
    *  `domain_name: 'www.rcplus.io'` and `is_wildcard: False` yields to a single-domain certificate for `www.rcplus.io`
 *  **CAUTION**: this Ansible role handles domain-ownership verification using DNS method. It waits for the verification endlessly, well,
    until Ansible play timeout. Therefore, to avoid running into a dead-end, it is very important to make sure that the specified domain
-   has a Route53 zone opens to the public internet, and the current user/session has the permission to create/delete entries in the zone.
+   has a Route53 zone opens to the public internet, and the current user/role has the permission to create/delete entries in the zone.
 
 ## Outputs
 
@@ -39,6 +43,5 @@ None
   vars:
     domain_name: '{{ env }}.rcplus.io'
     acm_region: 'us-east-1'
-    route53_region: '{{ aws_region }}'
     when: env != 'ops'
 ```
