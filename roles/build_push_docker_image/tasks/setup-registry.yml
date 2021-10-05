@@ -27,8 +27,8 @@
 - name: '[{{ ecr_repository_name }}] get Docker login credential'
   command: 'aws --region {{ aws_region }} ecr get-login-password'
   register: r_ecr_password
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: '[{{ ecr_repository_name }}] login to ECR'
   command: 'docker login --username AWS --password {{ r_ecr_password.stdout }} {{ ecr_registry_uri }}'
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'

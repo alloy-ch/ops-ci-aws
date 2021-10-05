@@ -43,14 +43,14 @@
   gather_stack_outputs:
     stack_name: '{{ env }}-{{ project_id }}-basis'
   register: basis_stack
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: '[{{ rds_db_name }}.{{ app_db_username }}] set the facts from the stacks outputs'
   set_fact:
     kms_key_id: '{{ basis_stack.outputs.KmsSecretsKey }}'
     rds_username: "{{ lookup('aws_ssm', ssmkey_rds_master_username_key, region=aws_region) }}"
     rds_password: "{{ lookup('aws_ssm', ssmkey_rds_master_password_key, decrypt=True, region=aws_region) }}"
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 # ====================== Create app-specific PostgreSQL user ===================
 
@@ -58,7 +58,7 @@
   register: result
   environment:
     PGPASSWORD: '{{ rds_password }}'
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
   command: >-
     docker run --rm -e PGPASSWORD psql-client -At -c "
       SELECT count(*) FROM pg_roles WHERE rolname='{{ app_db_username }}'
@@ -73,14 +73,14 @@
   register: result_name
   failed_when: result_name.rc not in [0,255] or (result_name.rc == 255 and 'ParameterNotFound' not in result_name.stderr)
   changed_when: result_name.rc not in [0]
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: '[{{ rds_db_name }}.{{ app_db_username }}] check if password already exists in SSM'
   command: aws --region {{ aws_region }} ssm get-parameter --name {{ ssmkey_rds_app_user_password_key }}
   register: result_pw
   failed_when: result_pw.rc not in [0,255] or (result_pw.rc == 255 and 'ParameterNotFound' not in result_pw.stderr)
   changed_when: result_pw.rc not in [0]
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: '[{{ rds_db_name }}.{{ app_db_username }}] set the flags'
   set_fact:
@@ -90,12 +90,12 @@
 - name: '[{{ rds_db_name }}.{{ app_db_username }}] get user password'
   set_fact:
     user_password: "{{ lookup('aws_ssm', ssmkey_rds_app_user_password_key, decrypt=True, region=aws_region) }}"
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: '[{{ rds_db_name }}.{{ app_db_username }}] generate user password'
   set_fact:
     user_password: "{{ lookup('password', '/dev/null length=60 chars=ascii_letters') }}"
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
   when: user_pw_not_exist_in_ssm
 
 - name: '[{{ rds_db_name }}.{{ app_db_username }}] set the flag'
@@ -121,14 +121,14 @@
     string_type: 'SecureString'
     key_id: '{{ kms_key_id }}'
     value: '{{ user_password }}'
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
   when: user_pw_not_exist_in_ssm
 
 # this protects from accidental removal of SSM keys, and makes sure the SSM values are valid
 - name: '[{{ rds_db_name }}.{{ app_db_username }}] update password'
   environment:
     PGPASSWORD: '{{ rds_password }}'
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
   when: exists_in_postgres_but_not_ssm
   command: >-
     docker run --rm -e PGPASSWORD psql-client -c "
