@@ -17,7 +17,7 @@
   template:
     src: '{{ template_file }}'
     dest: "{{ workspace_path }}/configuration_template.yml"
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - debug:
     msg: 'rendered configuration template: {{ workspace_path }}/configuration_template.yml'
