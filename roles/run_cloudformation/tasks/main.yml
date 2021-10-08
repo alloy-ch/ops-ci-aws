@@ -10,7 +10,7 @@
   template:
     src: '{{ template }}'
     dest: '{{ workspace_path }}/cloudformation.yml'
-  no_log: '{{ ansible_verbosity < 3 }}'
+  no_log: true
 
 - name: '[{{ stack_name }}] debug'
   debug:
@@ -21,7 +21,7 @@
 #
 - name: '[{{ stack_name }}] read the CloudFormation file'
   command: cat "{{ workspace_path }}/cloudformation.yml"
-  no_log: '{{ ansible_verbosity < 3 }}'
+  no_log: true
   register: cf_output
 
 - name: '[{{ stack_name }}] check if SAM is needed to deploy the stack'
@@ -42,7 +42,7 @@
         region: '{{ region }}'
         stack_name: '{{ basis_stack_name }}'
       register: basis_stack
-      no_log: '{{ ansible_verbosity < 3 }}'
+      no_log: true
 
     - name: '[{{ stack_name }}] find name of the correct S3 bucket'
       set_fact:

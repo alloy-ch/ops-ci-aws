@@ -52,7 +52,7 @@
 
 - name: '[{{ software_component }}] generate random password if needed'
   when: generate_new_key
-  no_log: '{{ ansible_verbosity < 3 }}'
+  no_log: true
   set_fact:
     master_password: "{{ lookup('password', '/dev/null length=60 chars=ascii_letters') }}"
 
@@ -102,14 +102,14 @@
   register: rds_stack
 
 - name: '[{{ software_component }}] get facts'
-  no_log: '{{ ansible_verbosity < 3 }}'
+  no_log: true
   set_fact:
     rds_endpoint: '{{ rds_stack.outputs.RdsClusterEndpointAddress }}'
     rds_username: "{{ lookup('aws_ssm', ssmkey_rds_master_username_key, region=aws_region) }}"
     rds_password: "{{ lookup('aws_ssm', ssmkey_rds_master_password_key, decrypt=True, region=aws_region) }}"
 
 - name: "[{{ software_component }}] create '{{ rds_schema_name }}' schema"
-  no_log: '{{ ansible_verbosity < 3 }}'
+  no_log: true
   environment:
     PGPASSWORD: '{{ rds_password }}'
   command: >-
@@ -118,7 +118,7 @@
     " postgresql://{{ rds_username }}@{{ rds_endpoint }}:{{ rds_port }}/{{ rds_db_name }}
 
 - name: "[{{ software_component }}] drop 'public' schema"
-  no_log: '{{ ansible_verbosity < 3 }}'
+  no_log: true
   environment:
     PGPASSWORD: '{{ rds_password }}'
   command: >-
