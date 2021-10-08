@@ -66,13 +66,13 @@
     parameter_overrides: '{{parameter_overrides}} {{ item.key }}="{{ item.value }}"'
   with_items: '{{ template_parameters | default({}) | dict2items }}'
   when: template_parameters is defined and template_parameters.keys()|length > 0
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: '[{{ stack_name }}] set parameter_overrides'
   set_fact:
     parameter_overrides: '--parameter-overrides {{ parameter_overrides }}'
   when: parameter_overrides is defined and parameter_overrides != ''
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 #
 # SAM processing, if relevant
@@ -86,7 +86,7 @@
        --s3-prefix {{ git_info.repo_name }}
        --region {{ region }}
   when: is_sam_required
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: '[{{ stack_name }}] in case of classical CloudFormation template: copy'
   command: cp {{ workspace_path }}/cloudformation.yml {{ workspace_path }}/cloudformation-final.yml
