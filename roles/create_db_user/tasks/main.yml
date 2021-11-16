@@ -152,5 +152,5 @@
       ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema_name }} GRANT {{ table_privileges }} ON TABLES TO {{ app_db_username }};
       ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema_name }} GRANT {{ sequence_privileges }} ON SEQUENCES TO {{ app_db_username }};
       ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema_name }} GRANT {{ function_privileges }} ON FUNCTIONS TO {{ app_db_username }};
-      ALTER USER {{ app_db_username }} SET search_path='{{rds_schema_name}}';
+      ALTER USER {{ app_db_username }} SET search_path='{{ rds_schema_name }}';
     " postgresql://{{ rds_username }}@{{ rds_endpoint }}:{{ rds_port }}/{{ rds_db_name }}
