@@ -71,21 +71,21 @@
 - name: '[{{ rds_db_name }}.{{ app_db_username }}] check if username already exists in SSM'
   command: aws --region {{ aws_region }} ssm get-parameter --name {{ ssmkey_rds_app_user_username_key }}
   register: result_name
-  failed_when: result_name.rc not in [0,255] or (result_name.rc == 255 and 'ParameterNotFound' not in result_name.stderr)
+  failed_when: result_name.rc != 0 and ('ParameterNotFound' not in result_name.stderr)
   changed_when: result_name.rc not in [0]
   no_log: true
 
 - name: '[{{ rds_db_name }}.{{ app_db_username }}] check if password already exists in SSM'
   command: aws --region {{ aws_region }} ssm get-parameter --name {{ ssmkey_rds_app_user_password_key }}
   register: result_pw
-  failed_when: result_pw.rc not in [0,255] or (result_pw.rc == 255 and 'ParameterNotFound' not in result_pw.stderr)
+  failed_when: result_pw.rc != 0 and ('ParameterNotFound' not in result_pw.stderr)
   changed_when: result_pw.rc not in [0]
   no_log: true
 
 - name: '[{{ rds_db_name }}.{{ app_db_username }}] set the flags'
   set_fact:
-    user_name_does_not_exist_in_ssm: "{{ result_name.rc == 255 and 'ParameterNotFound' in result_name.stderr }}"
-    user_pw_not_exist_in_ssm: "{{ result_pw.rc == 255 and 'ParameterNotFound' in result_pw.stderr }}"
+    user_name_does_not_exist_in_ssm: "{{ 'ParameterNotFound' in result_name.stderr }}"
+    user_pw_not_exist_in_ssm: "{{ 'ParameterNotFound' in result_pw.stderr }}"
 
 - name: '[{{ rds_db_name }}.{{ app_db_username }}] get user password'
   set_fact:
