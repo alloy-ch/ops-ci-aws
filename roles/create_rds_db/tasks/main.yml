@@ -43,7 +43,7 @@
 - name: '[{{ software_component }}] check if RDS master password exists in SSM'
   command: aws --region {{ aws_region }} ssm get-parameter --name {{ ssmkey_rds_master_password_key }}
   register: result
-  failed_when: result.rc not in [0,255] or (result.rc == 255 and 'ParameterNotFound' not in result.stderr)
+  failed_when: result.rc != 0 and ('ParameterNotFound' not in result.stderr)
   changed_when: result.rc not in [0]
 
 - name: '[{{ software_component }}] set the flag'
