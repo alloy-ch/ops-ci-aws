@@ -92,7 +92,7 @@ Resources:
     Properties:
       BackupRetentionPeriod: !If [IsProd, 7, 1]
       DatabaseName: '{{ rds_db_name }}'
-      DBClusterParameterGroupName: 'default.aurora-postgresql12'
+      DBClusterParameterGroupName: 'default.aurora-postgresql13'
       DBSubnetGroupName: !Ref RdsSubnetGroup
       DeletionProtection: false
       EnableIAMDatabaseAuthentication: false
