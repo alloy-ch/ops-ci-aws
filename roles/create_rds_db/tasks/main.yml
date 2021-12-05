@@ -109,7 +109,7 @@
     rds_password: "{{ lookup('aws_ssm', ssmkey_rds_master_password_key, decrypt=True, region=aws_region) }}"
 
 - name: "[{{ software_component }}] create '{{ rds_schema_name }}' schema"
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
   environment:
     PGPASSWORD: '{{ rds_password }}'
   command: >-
@@ -118,13 +118,16 @@
     " postgresql://{{ rds_username }}@{{ rds_endpoint }}:{{ rds_port }}/{{ rds_db_name }}
 
 - name: "[{{ software_component }}] drop 'public' schema"
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
   environment:
     PGPASSWORD: '{{ rds_password }}'
   command: >-
     docker run --rm -e PGPASSWORD psql-client -c "
       DROP SCHEMA IF EXISTS public;
     " postgresql://{{ rds_username }}@{{ rds_endpoint }}:{{ rds_port }}/{{ rds_db_name }}
+  # NOTE-zw: after the intial db creation, subsequent RDS major version upgrade will create new public schema belongs to user
+  # rdsadmin. The deletion will no longer be possible by the current user. Therefore, we ignore the error for such cases.
+  ignore_errors: true
 
 - include_role:
     name: 'create_db_user'
