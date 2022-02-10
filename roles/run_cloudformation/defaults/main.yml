@@ -3,3 +3,4 @@
 region: '{{ aws_region }}'
 template_parameters: {}
 infrastructure_bucket_override: ''
+skip_version_tag: false
