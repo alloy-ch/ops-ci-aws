@@ -79,7 +79,7 @@
 #
 - name: '[{{ stack_name }}] in case of SAM template: transform'
   command: >-
-    aws cloudformation package
+    sam package
        --template-file {{ workspace_path }}/cloudformation.yml
        --output-template-file {{ workspace_path }}/cloudformation-final.yml
        --s3-bucket {{ deployment_bucket }}
