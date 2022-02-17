@@ -28,6 +28,16 @@
   set_fact:
     is_sam_required: "{{ true if cf_output.stdout.find('AWS::Serverless-') != -1 else false }}"
 
+- name: '[{{ stack_name }}] check if sam-cli exists'
+  when: is_sam_required
+  block: 
+    - name: '[{{ stack_name }}] check if sam-cli exists'
+      shell: command -v sam >/dev/null 2>&1
+      register: rc_check_sam_cli
+      ignore_errors: yes
+    - set_fact:
+        does_sam_cli_exist: '{{ rc_check_sam_cli.rc == 0 }}'
+
 #
 # get name of the correct S3 bucket
 #
@@ -79,7 +89,7 @@
 #
 - name: '[{{ stack_name }}] in case of SAM template: transform'
   command: >-
-    sam package
+    {{ 'sam' if does_sam_cli_exist else 'aws cloudformation' }} package
        --template-file {{ workspace_path }}/cloudformation.yml
        --output-template-file {{ workspace_path }}/cloudformation-final.yml
        --s3-bucket {{ deployment_bucket }}
@@ -97,7 +107,7 @@
 #
 - name: '[{{ stack_name }}] apply stack updates'
   command: >-
-    {{ 'sam' if is_sam_required else 'aws cloudformation' }} deploy
+    {{ 'sam' if is_sam_required and does_sam_cli_exist else 'aws cloudformation' }} deploy
       --template-file {{ workspace_path }}/cloudformation-final.yml
       --s3-bucket {{ deployment_bucket }}
       --s3-prefix {{ git_info.repo_name }}
