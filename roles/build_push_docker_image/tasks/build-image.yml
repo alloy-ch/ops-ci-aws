@@ -35,4 +35,4 @@
 
 - name: '[{{ ecr_repository_name }}] build the image'
   command: |
-    docker build --rm --quiet --tag {{ docker_image_with_tag }} {{ workspace_code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
+    docker build --platform linux/amd64 --rm --quiet --tag {{ docker_image_with_tag }} {{ workspace_code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
