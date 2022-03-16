@@ -1,0 +1,86 @@
+---
+- name: 'check the common variables'
+  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
+
+- name: 'get the absolute path of source dir'
+  set_fact:
+    source_dir: '{{ (playbook_dir, "../app") | path_join | realpath }}'
+  when: source_path is not defined or source_path == ''
+
+- name: 'get default source dir if not specified'
+  set_fact:
+    source_dir: '{{ source_path | realpath }}'
+  when: source_path is defined and source_path != ''
+
+- name: 'check if package.json exists'
+  stat:
+    path: '{{ source_dir }}/package.json'
+  register: r_stat
+  no_log: True
+  changed_when: False
+  failed_when: not r_stat.stat.exists
+
+- name: 'check if package-lock.json exists'
+  stat:
+    path: '{{ source_dir }}/package-lock.json'
+  register: r_stat
+  no_log: True
+  changed_when: False
+  failed_when: not r_stat.stat.exists
+
+- name: 'gather Ansible facts'
+  # we need only the current time with millisecond precision, but Ansible does not offer an option to specify, we have to get all
+  gather_facts: {}
+
+- name: 'compute the output dir path'
+  set_fact:
+    output_dir: '{{ workspace_path }}/lambda_{{ ansible_date_time.iso8601_micro| hash("md5") }}'
+
+- name: 'create the output dir'
+  file:
+    path: '{{ output_dir }}'
+    state: 'directory'
+  changed_when: False
+
+- name: 'package the source code files'
+  shell:
+    cmd: npm pack --ignore-scripts --pack-destination {{ workspace_path }} --json |jq -crM ".[].filename"
+    chdir: '{{ source_dir }}'
+  register: r_pack
+  changed_when: False
+  failed_when: r_pack.stdout == ''
+
+- name: 'unpack to the destination'
+  shell: tar -zxf {{ workspace_path }}/{{ r_pack.stdout }} -C {{ output_dir }} --strip 1
+
+- name: 'copy package-lock.json'
+  # because `npm pack` ignored it
+  copy:
+    src: '{{ source_dir }}/package-lock.json'
+    dest: '{{ output_dir }}/package-lock.json'
+
+- name: 'place the shell script to be executed inside the container'
+  copy:
+    src: '{{ role_path }}/files/docker_build_typescript.sh'
+    dest: '{{ output_dir }}/docker_build_typescript.sh'
+    mode: 0755
+
+- name: 'build the app insider lambda runtime container'
+  command: >
+    docker run --rm
+      -v "{{ output_dir }}:/workspace"
+      -v "~/.npmrc:/root/.npmrc"
+      --entrypoint "/workspace/docker_build_typescript.sh"
+      {{ lambda_runtime_docker_image_nodejs }}
+
+- name: 'remove unneccessary files'
+  file:
+    path: '{{ item }}'
+    state: absent
+  with_items:
+    - '{{ output_dir }}/package-lock.json'
+    - '{{ output_dir }}/docker_build_typescript.sh'
+
+- name: 'set output'
+  set_fact:
+    lambda_code_path: '{{ output_dir }}'
