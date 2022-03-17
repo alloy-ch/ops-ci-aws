@@ -87,20 +87,15 @@
 #
 # SAM processing, if relevant
 #
-- name: '[{{ stack_name }}] in case of SAM template: transform'
+- name: '[{{ stack_name }}] in case of SAM template: transform; otherwise: package'
   command: >-
-    {{ 'sam' if does_sam_cli_exist else 'aws cloudformation' }} package
+    {{ 'sam' if is_sam_required and does_sam_cli_exist else 'aws cloudformation' }} package
        --template-file {{ workspace_path }}/cloudformation.yml
        --output-template-file {{ workspace_path }}/cloudformation-final.yml
        --s3-bucket {{ deployment_bucket }}
        --s3-prefix {{ git_info.repo_name }}
        --region {{ region }}
-  when: is_sam_required
   no_log: '{{ ansible_verbosity < 3 }}'
-
-- name: '[{{ stack_name }}] in case of classical CloudFormation template: copy'
-  command: cp {{ workspace_path }}/cloudformation.yml {{ workspace_path }}/cloudformation-final.yml
-  when: not is_sam_required
 
 #
 # finally, deploy
