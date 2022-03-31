@@ -50,8 +50,15 @@
   changed_when: False
   failed_when: r_pack.stdout == ''
 
+- name: 'fix the archive name'
+  # npm has a bug in all 6.x - 8.x versions (https://github.com/npm/cli/issues/3405)
+  # It produces wrong filename in the json output of `npm pack`, here we apply a workaround to do the same search/replace
+  # as in https://github.com/npm/cli/blob/668ec7f33b7a76f5e86a59f7e5a6c0e068a242b1/lib/commands/pack.js#L59
+  set_fact:
+    fixed_filename: '{{ r_pack.stdout | regex_replace("^@", "") | regex_replace("/", "-")}}'
+
 - name: 'unpack to the destination'
-  shell: tar -zxf {{ workspace_path }}/{{ r_pack.stdout }} -C {{ output_dir }} --strip 1
+  shell: tar -zxf {{ workspace_path }}/{{ fixed_filename }} -C {{ output_dir }} --strip 1
 
 - name: 'copy package-lock.json'
   # because `npm pack` ignored it
