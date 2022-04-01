@@ -20,7 +20,7 @@
       - '--exclude=venv'
       - '--exclude=node_modules'
       - '--exclude=coverage'
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 # build build_arg string
 #
