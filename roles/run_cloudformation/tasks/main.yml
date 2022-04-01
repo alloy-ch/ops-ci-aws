@@ -10,7 +10,7 @@
   template:
     src: '{{ template }}'
     dest: '{{ workspace_path }}/cloudformation.yml'
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: '[{{ stack_name }}] debug'
   debug:
