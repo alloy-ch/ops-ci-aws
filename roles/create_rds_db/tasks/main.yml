@@ -102,7 +102,7 @@
   register: rds_stack
 
 - name: '[{{ software_component }}] get facts'
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
   set_fact:
     rds_endpoint: '{{ rds_stack.outputs.RdsClusterEndpointAddress }}'
     rds_username: "{{ lookup('aws_ssm', ssmkey_rds_master_username_key, region=aws_region) }}"

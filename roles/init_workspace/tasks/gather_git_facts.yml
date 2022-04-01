@@ -9,7 +9,7 @@
       echo "false"
     fi
   register: r_git_repo_check
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - set_fact:
     is_within_git_repo: '{{ r_git_repo_check.stdout }}'
@@ -19,27 +19,27 @@
     - name: 'get git repo name'
       shell: basename -s .git $(git config --get remote.origin.url)
       register: r_git_repo_name
-      no_log: true
+      no_log: '{{ ansible_verbosity < 3 }}'
 
     - name: 'get HEAD commit hash (full)'
       command: git rev-parse HEAD
       register: r_git_commit_hash
-      no_log: true
+      no_log: '{{ ansible_verbosity < 3 }}'
 
     - name: 'get HEAD commit hash (short)'
       command: git rev-parse --short HEAD
       register: r_git_commit_hash_short
-      no_log: true
+      no_log: '{{ ansible_verbosity < 3 }}'
 
     - name: 'check pending changes'
       shell: "[[ -z $(git status -s --untracked-files=no) ]] || echo 'dirty'"
       register: r_git_short_status
-      no_log: true
+      no_log: '{{ ansible_verbosity < 3 }}'
 
     - name: 'get current git branch name'
       command: git rev-parse --abbrev-ref HEAD
       register: r_git_branch
-      no_log: true
+      no_log: '{{ ansible_verbosity < 3 }}'
 
     - set_fact:
         git_info:

@@ -15,7 +15,7 @@
 - name: get the value from the environment variable if available
   set_fact:
     new_param_value: "{{ lookup('env', environment_var) }}"
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: guard - make sure that either the existing value is not empty or a new value is provided
   fail:
