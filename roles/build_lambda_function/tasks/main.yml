@@ -85,11 +85,27 @@
       {{ lambda_runtime_docker_image_nodejs }}
 
 - name: 'retrieve the tarball path'
-  # npm has a bug in all 6.x - 8.x versions (https://github.com/npm/cli/issues/3405)
+  # [NOTE-zw] It is hard to believe that npm --as one of the few must-have tool for any node.js developer-- can be so buggy. So many
+  # edge cases are not covered, and so many well-known workarounds gradually become the "standard" and best practices...
+  #
+  # With npm 8, `npm pack` does not respect the silence settings (https://github.com/npm/cli/issues/4121). Therefore, when we pipe the
+  # stdout of `npm pack` from within the container, it produces an invalid JSON file, e.g.
+  #    ```
+  #    > lambda-function-errors@1.0.0 build
+  #    > npx tsc
+  #
+  #    [
+  #      {
+  #        "id": "lambda-function-errors@1.0.0",
+  #        ...
+  #    ```
+  # We use regex to clean up the non-JSON part before piping to `jq`
+  #
+  # Then npm has another bug in all 6.x - 8.x versions (https://github.com/npm/cli/issues/3405)
   # It produces wrong filename in the json output of `npm pack` for scoped npm package, here we apply a workaround to do the same
   # search/replace as in https://github.com/npm/cli/blob/668ec7f33b7a76f5e86a59f7e5a6c0e068a242b1/lib/commands/pack.js#L59
   shell:
-    cmd: cat npm-pack-output.json | jq -crM ".[].filename" | sed 's/^@//' | sed 's/\//-/'
+    cmd: cat npm-pack-output.json | tr "\n" "\f" | grep -o "[\[{].*"  | tr "\f" "\n" | jq -crM ".[].filename" | sed 's/^@//' | sed 's/\//-/'
     chdir: '{{ intermediate_dir }}'
   register: r_tarball
   changed_when: False
