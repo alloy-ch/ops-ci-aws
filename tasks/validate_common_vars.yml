@@ -23,7 +23,7 @@
 
 - name: 'retrieve the SKIP_ENV_CHECK flag'
   set_fact:
-    skip_env_check: "{{ lookup('env', 'SKIP_ENV_CHECK1') }}"
+    skip_env_check: "{{ lookup('env', 'SKIP_ENV_CHECK') }}"
 
 - name: 'check the environment consistency'
   when: skip_env_check is undefined or skip_env_check == ''
