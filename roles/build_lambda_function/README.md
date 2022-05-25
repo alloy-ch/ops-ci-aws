@@ -12,7 +12,7 @@ binary architecture.
 | Param                                | Mandatory | Type | Default                       | Description                                                                       |
 |:-------------------------------------|:---------:|:----:|:------------------------------|:----------------------------------------------------------------------------------|
 | `source_path`                        |    No     | str  | `{{ playbook_dir }}/../app`   | Dir of the TypeScript app, where the corresponding`package.json` is located.      |
-| `lambda_runtime_docker_image_nodejs` |    No     | str  | `amazon/aws-lambda-nodejs:14` | Docker image to use for the build. Refer to [the definition](./defaults/main.yml) |
+| `lambda_runtime_docker_image_nodejs` |    No     | str  | `amazon/aws-lambda-nodejs:16` | Docker image to use for the build. Refer to [the definition](./defaults/main.yml) |
 
 ## Outputs
 
@@ -26,7 +26,7 @@ binary architecture.
 ```ansible
 - name: 'build the TypeScript application at ./app for Lambda'
 - include_role:
-    name: 'build_lambda_function'
+    name: 'ringier.aws_cicd.build_lambda_function'
 
 - name: 'show result'
   debug:
@@ -36,7 +36,7 @@ binary architecture.
 
 - name: 'build the TypeScript application at ./app/component1/function2 for Lambda'
   include_role:
-    name: 'build_lambda_function'
+    name: 'ringier.aws_cicd.build_lambda_function'
   vars:
     source_path: '../app/component1/function2'
 
