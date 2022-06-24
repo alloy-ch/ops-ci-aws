@@ -53,7 +53,7 @@
   when: adhoc_deploy
   block:
     - name: '[{{ ecr_repository_name }}] ad-hoc deployment: get the image repo digest'
-      shell: docker inspect {{ docker_image_full_name_and_tag }} | jq -r '.[0].RepoDigests[0]'
+      shell: docker inspect {{ docker_image_full_name_and_tag }} | jq -crM '.[0].RepoDigests[] | select(startswith("{{ ecr_registry_uri }}"))'
       register: docker_inspect
 
     - name: '[{{ ecr_repository_name }}] ad-hoc deployment: use the image repo digest as the docker image'

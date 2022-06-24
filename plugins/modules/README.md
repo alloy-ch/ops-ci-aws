@@ -11,7 +11,7 @@ NOTE: we get all the outputs of a stack, no matter the output is exported or not
 With the following Ansible task:
 ```ansible
   name: 'get storage stack'
-  gather_stack_outputs:
+  ringier.aws_cicd.gather_stack_outputs:
     stack_name: 'prod-sherlock-api-storage'
     region: 'eu-central-1'
   register: storage_stack

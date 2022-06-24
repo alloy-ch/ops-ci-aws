@@ -10,7 +10,7 @@
   when: npmrc_encoded == ''
 
 - name: '[{{ ecr_repository_name }}] copy container code to workspace'
-  synchronize:
+  ansible.posix.synchronize:
     src: '{{ code_path }}/'
     dest: '{{ workspace_code_path }}'
     copy_links: 'yes'

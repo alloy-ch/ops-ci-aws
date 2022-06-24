@@ -29,7 +29,7 @@ This Ansible role:
 ```ansible
 - name: 'push the pre-built Docker image into ECR'
 - include_role:
-    name: 'build_push_docker_image'
+    name: 'ringier.aws_cicd.build_push_docker_image'
   vars:
     ecr_repository_name: '{{ env }}-{{ project_id }}-rambler'
     prebuilt_image_supplied: true
@@ -44,13 +44,13 @@ This Ansible role:
 - name: 'build and push the Docker image to ECR'
   # note that we take the default {{ playbook_dir }}/../app/Dockerfile to build the image  
   include_role:
-    name: 'build_push_docker_image'
+    name: 'ringier.aws_cicd.build_push_docker_image'
   vars:
     ecr_repository_name: '{{ env }}-{{ project_id }}-database-test'
 
 - name: 'build and push the Docker image to ECR'
   include_role:
-    name: 'build_push_docker_image'
+    name: 'ringier.aws_cicd.build_push_docker_image'
   vars:
     ecr_repository_name: '{{ env }}-{{ project_id }}-database-test'
     code_path: '{{ playbook_dir }}/../src'    # we run Docker build using '{{ playbook_dir }}/../src/Dockerfile'

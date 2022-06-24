@@ -16,7 +16,7 @@
     template: '{{ cf_ecr_template }}'
 
 - name: '[{{ ecr_repository_name }}] gather the ECR stack outputs'
-  gather_stack_outputs:
+  ringier.aws_cicd.gather_stack_outputs:
     stack_name: '{{ ecr_stack_name }}'
   register: ecr_stack
 

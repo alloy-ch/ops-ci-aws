@@ -24,7 +24,7 @@ None
 
 - name: 'deploy the scheduler application to k8s cluster'
   include_role:
-    name: 'deploy_to_k8s'
+    name: 'ringier.aws_cicd.deploy_to_k8s'
   vars:
     cluster_arn: '{{ eks_stack.outputs.EksArn }}'
     template_file: '{{ k8s_manifest_file }}'
@@ -36,7 +36,7 @@ above, if we do
 ```yaml
 - name: 'deploy the scheduler application to k8s cluster'
   include_role:
-    name: 'deploy_to_k8s'
+    name: 'ringier.aws_cicd.deploy_to_k8s'
   vars:
     cluster_arn: '{{ eks_stack.outputs.EksArn }}'
     template_file: '{{ role_path }}/files/scheduler-manifest.yml'

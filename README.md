@@ -17,7 +17,6 @@ This repository holds the shared Ansible roles, modules and tasks for projects t
 *  [create_acm_ssl_certificate](./roles/create_acm_ssl_certificate/README.md)
 *  [create_db_user](./roles/create_db_user/README.md)
 *  [create_rds_db](./roles/create_rds_db/README.md)
-*  [create_ssm_param](./roles/create_ssm_param/README.md) _deprecated_
 *  [del_workspace](./roles/del_workspace/README.md)
 *  [deploy_to_k8s](./roles/deploy_to_k8s/README.md)
 *  [init_workspace](./roles/init_workspace/README.md)
