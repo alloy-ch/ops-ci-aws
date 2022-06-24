@@ -37,7 +37,7 @@ None
 
 ```ansible
 - include_role:
-    name: 'create_rds_db'
+    name: 'ringier.aws_cicd.create_rds_db'
   vars:
     base_domain: 'p.newsglobe.io'
     ops_shared_vpc_cidr: '10.34.0.0/19'

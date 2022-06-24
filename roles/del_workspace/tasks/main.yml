@@ -8,3 +8,4 @@
     path: '{{ workspace_path }}'
     state: 'absent'
   when: workspace_path is defined
+  no_log: '{{ ansible_verbosity < 3 }}'

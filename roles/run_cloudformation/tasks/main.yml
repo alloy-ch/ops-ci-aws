@@ -12,10 +12,6 @@
     dest: '{{ workspace_path }}/cloudformation.yml'
   no_log: '{{ ansible_verbosity < 3 }}'
 
-- name: '[{{ stack_name }}] debug'
-  debug:
-    msg: 'rendered CloudFormation template: {{ workspace_path }}/cloudformation.yml'
-
 #
 # check if AWS SAM is required
 #
@@ -48,7 +44,7 @@
         basis_stack_name: "{{ (env + '-' + project_id + '-basis') if region != 'us-east-1' else (env + '-' + project_id + '-basis-us-east-1') }}"
 
     - name: '[{{ stack_name }}] get the CloudFormation stack outputs'
-      gather_stack_outputs:
+      ringier.aws_cicd.gather_stack_outputs:
         region: '{{ region }}'
         stack_name: '{{ basis_stack_name }}'
       register: basis_stack
@@ -87,7 +83,7 @@
 #
 # SAM processing, if relevant
 #
-- name: '[{{ stack_name }}] in case of SAM template: transform; otherwise: package'
+- name: '[{{ stack_name }}] packing (use samcli if relevant)'
   command: >-
     {{ 'sam' if is_sam_required and does_sam_cli_exist else 'aws cloudformation' }} package
        --template-file {{ workspace_path }}/cloudformation.yml

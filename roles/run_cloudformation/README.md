@@ -41,7 +41,7 @@ None
   set_fact:
     ecr_stack_name: '{{ ecr_repository_name }}-ecr'
 - include_role:
-    name: 'run-cloudformation'
+    name: 'ringier.aws_cicd.run_cloudformation'
   vars:
     stack_name: '{{ ecr_stack_name }}'
     template: '{{ cf_ecr_template }}'
@@ -52,7 +52,7 @@ None
 
 - name: 'create AWS EKS cluster'
   include_role:
-    name: 'run-cloudformation'
+    name: 'ringier.aws_cicd.run_cloudformation'
   vars:
     stack_name: '{{ env }}-{{ project_id }}-eks-cluster'
     template: '{{ template_file }}'

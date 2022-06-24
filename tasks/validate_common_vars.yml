@@ -30,7 +30,7 @@
   block:
     - name: 'get the environment code from AWS account'
       set_fact:
-        env_aws: "{{ lookup('aws_ssm', '/ops-ci/environment', region=home_aws_region) }}"
+        env_aws: "{{ lookup('amazon.aws.aws_ssm', '/ops-ci/environment', region=home_aws_region) }}"
 
     - name: 'fail the process in case of environment mismatch'
       when: env_aws != env

@@ -56,7 +56,7 @@
   changed_when: False
 
 - name: 'prepare the source files for the container'
-  synchronize:
+  ansible.posix.synchronize:
     src: '{{ source_dir }}/'
     dest: '{{ intermediate_dir }}'
     copy_links: 'yes'

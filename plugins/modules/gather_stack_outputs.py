@@ -16,7 +16,7 @@ except ImportError:
 
 from ansible.module_utils._text import to_native
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.ec2 import (get_aws_connection_info, ec2_argument_spec, boto3_conn, AWSRetry)
+from ansible_collections.amazon.aws.plugins.module_utils.ec2 import (get_aws_connection_info, ec2_argument_spec, boto3_conn, AWSRetry)
 
 
 class CloudFormationServiceManager:
