@@ -18,6 +18,7 @@ Resources:
       SubjectAlternativeNames:
         - '{{ domain_name }}'
 #{% endif %}
+#
       ValidationMethod: DNS
       Tags:
         - { Key: 'Name', Value: '{{ env }}-{{ project_id }}-certificate-{{ target_domain_display_name }}' }
