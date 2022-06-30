@@ -3,7 +3,7 @@
 - name: '[{{ ecr_repository_name }}] get NPMRC_ENCODED from the environment variable'
   set_fact:
     npmrc_encoded: "{{ lookup('env', 'NPMRC_ENCODED') }}"
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: '[{{ ecr_repository_name }}] safeguard'
   fail: msg="missing environment variable 'NPMRC_ENCODED'"
