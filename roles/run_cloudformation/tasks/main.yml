@@ -13,6 +13,23 @@
   no_log: '{{ ansible_verbosity < 3 }}'
 
 #
+# replace ≪ ≫
+#
+- name: '[{{ stack_name }}] restore ≪'
+  ansible.builtin.replace:
+    path: '{{ workspace_path }}/cloudformation.yml'
+    regexp: '≪'
+    replace: '\{\{'
+  no_log: '{{ ansible_verbosity < 3 }}'
+
+- name: '[{{ stack_name }}] restore ≫'
+  ansible.builtin.replace:
+    path: '{{ workspace_path }}/cloudformation.yml'
+    regexp: '≫'
+    replace: '\}\}'
+  no_log: '{{ ansible_verbosity < 3 }}'
+
+#
 # check if AWS SAM is required
 #
 - name: '[{{ stack_name }}] read the CloudFormation file'

@@ -1,0 +1,104 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: 'RC+/DevOps - Logs collector for logz.io (format: {{ logzio_format }}, type: {{ logzio_type }}) (v{{ project_version }})'
+
+
+Resources:
+
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt LogzioShipperLambda.Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: !Sub 'logs.${AWS::Region}.amazonaws.com'
+      SourceAccount: !Ref 'AWS::AccountId'
+
+  LogzioShipperLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: '{{ logzio_lambda_name }}-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: '{{ env }}-{{ project_id }}-logzio-logs-shipper'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: 'WriteLogs'
+                Effect: 'Allow'
+                Action:
+                  - 'logs:PutResourcePolicy'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: !GetAtt LogzioShipperLogGroup.Arn
+              - Sid: 'ReadOthersLogs'
+                Effect: 'Allow'
+                Action:
+                  - 'logs:Describe*'
+                  - 'logs:FilterLogEvents'
+                  - 'logs:Get*'
+                  - 'logs:List*'
+                Resource: '*'
+      Tags:
+        - { Key: 'Name', Value: '{{ logzio_lambda_name }}-role' }
+        - { Key: 'Project', Value: '{{ project_id }}' }
+        - { Key: 'Environment', Value: '{{ env }}' }
+        - { Key: 'Version', Value: 'v{{ project_version }}' }
+        - { Key: 'Repository', Value: '{{ git_info.repo_name }}' }
+
+  LogzioShipperLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: '/aws/lambda/{{ logzio_lambda_name }}'
+      RetentionInDays: 3
+      Tags:
+        - { Key: 'Name', Value: '{{ logzio_lambda_name }}' }
+        - { Key: 'Project', Value: '{{ project_id }}' }
+        - { Key: 'Environment', Value: '{{ env }}' }
+        - { Key: 'Version', Value: 'v{{ project_version }}' }
+        - { Key: 'Repository', Value: '{{ git_info.repo_name }}' }
+
+  LogzioShipperLambda:
+    DependsOn: LogzioShipperLogGroup
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: '{{ logzio_lambda_name }}'
+      Description: 'Forward CloudWatch Logs to logz.io'
+      Runtime: 'python3.9'
+      Handler: 'lambda_function.lambda_handler'
+      Code:
+        S3Bucket: '{{ logzio_shipper_lambda_code_s3_bucket }}'
+        S3Key: '{{ logzio_shipper_lambda_code_s3_key }}'
+      Role: !GetAtt LogzioShipperLambdaRole.Arn
+      MemorySize: 256
+      Timeout: 60
+      Environment:
+        Variables:
+          REGION: 'eu'
+          TOKEN: '{{ logzio_token }}'
+          TYPE: '{{ logzio_type }}'
+          FORMAT: '{{ logzio_format }}'
+          COMPRESS: '{{ logzio_compress }}'
+          ENRICH: 'Project={{ project_id }};Environment={{ env }}'
+          SENDALL: '{{ logzio_send_all }}'
+      Tags:
+        - { Key: 'Name', Value: '{{ logzio_lambda_name }}' }
+        - { Key: 'Project', Value: '{{ project_id }}' }
+        - { Key: 'Environment', Value: '{{ env }}' }
+        - { Key: 'Version', Value: 'v{{ project_version }}' }
+        - { Key: 'Repository', Value: '{{ git_info.repo_name }}' }
+
+
+Outputs:
+
+  LogzioShipperLambda:
+    Description: 'Arn of the Logz.io CloudWatch logs collection lambda (format: {{ logzio_format }}, type: {{ logzio_type }})'
+    Export:
+      Name: '{{ logzio_lambda_base_name }}-lambda-arn'
+    Value: !GetAtt LogzioShipperLambda.Arn
