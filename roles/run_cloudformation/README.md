@@ -25,6 +25,15 @@ Uploading the template to S3 before applying it removes the size limit at 51'200
 | `infrastructure_bucket_override` |    No     | str  | ``                   | Specify the S3 bucket to store the rendered CloudFormation template. This parameter **SHOULD ONLY BE USED** for the initial bootstrap repo to create the permanent S3 bucket for infrastructure. |
 | `template`                       |    Yes    | str  | -                    | Filepath to the CloudFormation template, use Jinja2 templating grammar if it makes things easier.                                                                                                |
 | `stack_name`                     |    Yes    | str  | -                    | Name of the CloudFormation stack to be created.                                                                                                                                                  |
+| `skip_version_tag`               |    No     | bool | false                | When true, the CloudFormation stack will not have `Version` tag.                                                                                                                                 |
+| `version_tag_override`           |    No     | str  | -                    | When specified, the CloudFormation stack will have `Version` tagged with the specified value instead of the default `{{ version }}`. This parameter overrules `skip_version_tag`.                |
+| `repo_tag_override`              |    No     | str  | -                    | When specified, the CloudFormation stack will have `Repository` tagged with the specified value instead of the default `{{ git_info.repo_name }}`.                                               |
+
+Regarding `version_tag_override` and `repo_tag_override`, we have some common roles
+(e.g. [ship_logs_to_logzio](../ship_logs_to_logzio/README.md)) create potentially multiple "instances" within the same AWS account.
+We need it to keep some tags stable instead of always inheriting the tags set from the repo referring this role. 
+
+Regarding `version_tag_override`, for the override value, if the semver is used, do not forget the prefix `v`. e.g. to tag `1.5.5` please specify `v1.5.5`
 
 ## Outputs
 

@@ -127,6 +127,6 @@
         Environment="{{ env }}"
         Name="{{ stack_name }}"
         Project="{{ project_id }}"
-        Repository="{{ git_info.repo_name }}"
-        {{ '' if skip_version_tag else 'Version="v' + project_version + '"' }}
+        Repository="{{ git_info.repo_name if repo_tag_override is not defined or repo_tag_override == '' else repo_tag_override }}"
+        {{ ('' if skip_version_tag else 'Version="v' + project_version + '"') if version_tag_override is not defined or version_tag_override == '' else 'Version="' + version_tag_override + '"' }}
       --no-fail-on-empty-changeset

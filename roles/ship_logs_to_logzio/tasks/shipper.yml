@@ -3,15 +3,10 @@
   set_fact:
     logzio_type_kebab_case: "{{ logzio_type | lower | replace('_', '-') | replace('-logzio', '') | replace('logzio-', '')}}"
 
-- name: '[logzio-shipper] assemble the lambda function base bane'
+- name: '[logzio-shipper] assemble the lambda function bane'
   set_fact:
     # this is complex name: for different log type we need different lambda function, so does the different data shipping token, therefore we put these variables in the name
-    logzio_lambda_base_name: "{{ project_id }}-logzio-{{ logzio_format }}-{{ logzio_type_kebab_case }}-{{ logzio_token_ssm_parameter_name | hash('md5') | truncate(8, True, '') }}"
-
-- name: '[logzio-shipper] assemble the lambda function full name'
-  set_fact:
-    # this is complex name: for different log type we need different lambda function, so does the different data shipping token, therefore we put these variables in the name
-    logzio_lambda_name: '{{ env }}-{{ logzio_lambda_base_name }}'
+    logzio_lambda_name: "{{ env }}-{{ project_id }}-logzio-{{ logzio_format }}-{{ logzio_type_kebab_case }}-{{ logzio_token_ssm_parameter_name | hash('md5') | truncate(8, True, '') }}"
 
 - name: '[logzio-shipper] set cloudformation template'
   set_fact:
@@ -23,3 +18,5 @@
   vars:
     stack_name: '{{ logzio_lambda_name }}'
     template: '{{ cloudformation_template }}'
+    repo_tag_override: 'ops-ci-aws'
+    version_tag_override: 'v1.5.6'
