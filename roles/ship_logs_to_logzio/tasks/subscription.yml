@@ -19,7 +19,7 @@
 - name: '[logzio-subscription] get the lambda function arn'
   command: |
     aws --region {{ aws_region }} cloudformation list-exports \
-      --no-paginate --output text --query 'Exports[?Name==`{{ logzio_lambda_name }}-lambda-arn`].Value'
+      --max-items 100000 --output text --query 'Exports[?Name==`{{ logzio_lambda_name }}-lambda-arn`].Value'
   register: r_lambda_arn
 
 - name: '[logzio-subscription] subscribe to the log group'
