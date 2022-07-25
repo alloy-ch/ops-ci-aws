@@ -13,16 +13,20 @@
   fail: msg="missing var 'base_domain'"
   when: base_domain == ''
 
+- name: "[{{ software_component }}] check if 'local_vpc_cidr' is supplied"
+  fail: msg="missing var 'local_vpc_cidr'"
+  when: local_vpc_cidr == ''
+
+- name: "[{{ software_component }}] check if 'vpn_prefix_list_id_ipv4' is supplied"
+  fail: msg="missing var 'vpn_prefix_list_id_ipv4'"
+  when: vpn_prefix_list_id_ipv4 == ''
+
 # ======================
 
-- name: '[{{ software_component }}] gather basis stack outputs'
-  ringier.aws_cicd.gather_stack_outputs:
-    stack_name: '{{ env }}-{{ project_id }}-basis'
-  register: basis_stack
-
-- name: '[{{ software_component }}] get KMS Key'
-  set_fact:
-    kms_key_id: '{{ basis_stack.outputs.KmsSecretsKey }}'
+- name: '[{{ software_component }}] get the devops key'
+  shell: |
+    aws --region {{ aws_region }} cloudformation list-exports --max-items 100000 --output text --query "Exports[?Name=='{{ project_id }}-kms-devops-key-id'].Value"
+  register: r_kms_key
 
 - name: '[{{ software_component }}] gather Route53 stack outputs'
   ringier.aws_cicd.gather_stack_outputs:
@@ -43,12 +47,12 @@
 - name: '[{{ software_component }}] check if RDS master password exists in SSM'
   command: aws --region {{ aws_region }} ssm get-parameter --name {{ ssmkey_rds_master_password_key }}
   register: result
-  failed_when: result.rc != 0 and ('ParameterNotFound' not in result.stderr)
+  failed_when: result.rc not in [0] and 'ParameterNotFound' not in result.stderr
   changed_when: result.rc not in [0]
 
 - name: '[{{ software_component }}] set the flag'
   set_fact:
-    generate_new_key: "{{ result.rc == 255 and 'ParameterNotFound' in result.stderr }}"
+    generate_new_key: "{{ 'ParameterNotFound' in result.stderr }}"
 
 - name: '[{{ software_component }}] generate random password if needed'
   when: generate_new_key
@@ -64,7 +68,7 @@
     name: '{{ ssmkey_rds_master_password_key }}'
     description: 'The password for the RDS master user'
     string_type: 'SecureString'
-    key_id: '{{ kms_key_id }}'
+    key_id: '{{ r_kms_key.stdout }}'
     value: '{{ master_password }}'
 
 # ====================== Deploy CloudFormation stack ===================
@@ -74,13 +78,13 @@
     template_filename: '{{ role_path }}/files/cf-rds.yml'
 
 - include_role:
-    name: 'run_cloudformation'
+    name: 'ringier.aws_cicd.run_cloudformation'
   vars:
     stack_name: '{{ env }}-{{ project_id }}-{{ software_component }}-rds'
     template: '{{ template_filename }}'
     template_parameters:
       VpcCidr: '{{ local_vpc_cidr }}'
-      VpnCidr: '{{ ops_shared_vpc_cidr }}'
+      VpnIpPrefixListId: '{{ vpn_prefix_list_id_ipv4 }}'
 
       RdsMasterUsername: "{{ lookup('amazon.aws.aws_ssm', ssmkey_rds_master_username_key, region=aws_region) }}"
       RdsMasterUserPasswordSsmKeyName: '{{ ssmkey_rds_master_password_key }}'
@@ -130,7 +134,7 @@
   ignore_errors: true
 
 - include_role:
-    name: 'create_db_user'
+    name: 'ringier.aws_cicd.create_db_user'
   vars:
     app_db_username: '{{ readonly_user_name }}'
     ssmkey_rds_app_user_username_key: '{{ ssmkey_rds_readonly_username_key }}'

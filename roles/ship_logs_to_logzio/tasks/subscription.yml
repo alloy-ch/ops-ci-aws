@@ -1,7 +1,7 @@
 ---
 - name: '[logzio-subscription] get the log group'
   shell: |
-    aws --region {{ aws_region }} logs describe-log-groups --no-paginate --log-group-name-prefix {{ logzio_log_group_to_monitor }} --query "logGroups[?logGroupName=='{{ logzio_log_group_to_monitor }}'].logGroupName" | jq -crM '.[]'
+    aws --region {{ aws_region }} logs describe-log-groups --max-items 100000 --log-group-name-prefix {{ logzio_log_group_to_monitor }} --query "logGroups[?logGroupName=='{{ logzio_log_group_to_monitor }}'].logGroupName" | jq -crM '.[]'
   register: r_log_groups
 
 - name: '[logzio-subscription] create the log group if it does not exist'
