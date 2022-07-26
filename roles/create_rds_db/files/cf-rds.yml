@@ -129,7 +129,7 @@ Resources:
       EnablePerformanceInsights: !If [IsProd, true, false]
 #{% if env == 'prod' %}
 #
-      PerformanceInsightsKMSKeyId: !ImportValue '{{ project_id }}-kms-devops-key'
+      PerformanceInsightsKMSKeyId: !ImportValue '{{ project_id }}-kms-devops-key-id'
       PerformanceInsightsRetentionPeriod: 7
 #{% endif %}
 #
