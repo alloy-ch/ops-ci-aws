@@ -9,19 +9,6 @@
   fail: msg="missing environment variable 'NPMRC_ENCODED'"
   when: npmrc_encoded == ''
 
-- name: '[{{ ecr_repository_name }}] copy container code to workspace'
-  ansible.posix.synchronize:
-    src: '{{ code_path }}/'
-    dest: '{{ workspace_code_path }}'
-    copy_links: 'yes'
-    recursive: 'yes'
-    delete: 'yes'
-    rsync_opts:
-      - '--exclude=venv'
-      - '--exclude=node_modules'
-      - '--exclude=coverage'
-  no_log: '{{ ansible_verbosity < 3 }}'
-
 # build build_arg string
 #
 - name: '[{{ ecr_repository_name }}] clear existing docker_build_args_str'
@@ -35,4 +22,4 @@
 
 - name: '[{{ ecr_repository_name }}] build the image'
   command: |
-    docker build --platform linux/amd64 --rm --quiet --tag {{ docker_image_with_tag }} {{ workspace_code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
+    docker build --platform linux/amd64 --rm --quiet --tag {{ docker_image_with_tag }} {{ code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
