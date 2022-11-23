@@ -35,6 +35,11 @@ We need it to keep some tags stable instead of always inheriting the tags set fr
 
 Regarding `version_tag_override`, for the override value, if the semver is used, do not forget the prefix `v`. e.g. to tag `1.5.5` please specify `v1.5.5`
 
+When `skip_version_tag` is set to true, the Cloudformation stack will not be tagged with `Version`. If it is false, the Cloudformation
+stack has tag `Version`, plus the additional ones including `GitBranch`, `GitCommit`, and `GitPendingChanges`.
+These three `Git*` tags indicates from which code line the stack was deployed from. 
+
+
 ## Outputs
 
 None
