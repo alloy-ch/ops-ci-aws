@@ -43,7 +43,7 @@
 
 - name: '[{{ stack_name }}] check if sam-cli exists'
   when: is_sam_required
-  block: 
+  block:
     - name: '[{{ stack_name }}] check if sam-cli exists'
       shell: command -v sam >/dev/null 2>&1
       register: rc_check_sam_cli
@@ -129,4 +129,7 @@
         Project="{{ project_id }}"
         Repository="{{ git_info.repo_name if repo_tag_override is not defined or repo_tag_override == '' else repo_tag_override }}"
         {{ ('' if skip_version_tag else 'Version="v' + project_version + '"') if version_tag_override is not defined or version_tag_override == '' else 'Version="' + version_tag_override + '"' }}
+        {{ '' if skip_version_tag else 'GitBranch="' + git_info.branch_name + '"' }}
+        {{ '' if skip_version_tag else 'GitCommit="' + git_info.commit_hash + '"' }}
+        {{ '' if skip_version_tag else 'GitPendingChanges="' + git_info.has_pending_changes | string + '"' }}
       --no-fail-on-empty-changeset
