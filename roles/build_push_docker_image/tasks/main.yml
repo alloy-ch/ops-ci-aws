@@ -4,9 +4,6 @@
   fail: msg="missing var 'ecr_repository_name'"
   when: ecr_repository_name is not defined or ecr_repository_name == ''
 
-- name: '[{{ ecr_repository_name }}] check the common variables'
-  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
-
 # if working on a pre-built image, analyze the supplied name
 - name: '[{{ ecr_repository_name }}] get image name and tag for the pre-built image'
   set_fact:

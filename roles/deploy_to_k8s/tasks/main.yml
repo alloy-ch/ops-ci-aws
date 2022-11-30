@@ -1,8 +1,5 @@
 ---
 
-- name: 'check the common variables'
-  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
-
 - name: "check if 'cluster_arn' is supplied"
   fail:
     msg: "missing var 'cluster_arn'"
