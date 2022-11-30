@@ -1,8 +1,5 @@
 ---
 
-- name: 'check the common variables'
-  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
-
 - name: 'delete temporary workspace directory'
   file:
     path: '{{ workspace_path }}'

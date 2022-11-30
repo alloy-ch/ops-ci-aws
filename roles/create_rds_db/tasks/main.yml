@@ -2,9 +2,6 @@
 
 # ====================== Check that all the required parameters are provided ===================
 
-- name: '[{{ software_component }}] check the common variables'
-  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
-
 - name: "[{{ software_component }}] check if 'software_component' is supplied"
   fail: msg="missing var 'software_component'"
   when: software_component == ''

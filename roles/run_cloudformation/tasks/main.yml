@@ -1,8 +1,5 @@
 ---
 
-- name: '[{{ stack_name }}] check the common variables'
-  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
-
 #
 # jinja2 templating
 #

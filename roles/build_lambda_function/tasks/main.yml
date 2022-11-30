@@ -1,6 +1,4 @@
 ---
-- name: 'check the common variables'
-  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
 
 - name: 'get the absolute path of source dir'
   set_fact:
