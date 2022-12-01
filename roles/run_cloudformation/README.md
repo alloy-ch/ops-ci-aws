@@ -28,6 +28,9 @@ Uploading the template to S3 before applying it removes the size limit at 51'200
 | `skip_version_tag`               |    No     | bool | false                | When true, the CloudFormation stack will not have `Version` tag.                                                                                                                                 |
 | `version_tag_override`           |    No     | str  | -                    | When specified, the CloudFormation stack will have `Version` tagged with the specified value instead of the default `{{ version }}`. This parameter overrules `skip_version_tag`.                |
 | `repo_tag_override`              |    No     | str  | -                    | When specified, the CloudFormation stack will have `Repository` tagged with the specified value instead of the default `{{ git_info.repo_name }}`.                                               |
+| `async_deploy`                     |    No    | bool  | false                    | By setting this value to true, Ansible starts the task and immediately moves on to the next task without waiting for a result, see https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_async.html#run-tasks-concurrently-poll-0                                                                                                                           |
+| `async_duration`                     |    No    | number  | 300                    | Only relevant in case `async_deploy` has been enabled. Seconds to wait before timing out the execution of the async deployment.
+|
 
 Regarding `version_tag_override` and `repo_tag_override`, we have some common roles
 (e.g. [ship_logs_to_logzio](../ship_logs_to_logzio/README.md)) create potentially multiple "instances" within the same AWS account.
@@ -75,4 +78,39 @@ None
       VpnCidr: '{{ ops_shared_vpc_cidr }}'
       VpcCidr: '{{ net_vpc }}'
       EksLogsRetentionInDays: '{{ eks_log_retention_in_days }}'
+```
+
+Async:
+
+```ansible
+- name: Set cloudformation template
+  set_fact:
+    cloudformation_template: "{{ role_path }}/files/cf-ecs-subscription-checker.yml"
+    subscription_checker_stack_name: "{{ env }}-{{ project_id }}-{{ software_component }}-subscription-checker-ecs"
+
+- name: Deploy cf stack
+  include_role:
+    name: "ringier.aws_cicd.run_cloudformation"
+  vars:
+    run_async: true
+    stack_name: "{{ subscription_checker_stack_name }}"
+    template: "{{ cloudformation_template }}"
+
+- name: Get deployment job id
+  set_fact:
+    subscription_checker_deployment_job_id: "{{deploy_cf.ansible_job_id}}"
+
+# ...
+# some other tasks which will be executed straight away as the cf deployment is non-blocking
+#  ...
+
+# follow up the status
+
+- name: "Check cf for completion"
+  async_status:
+    jid: "{{ subscription_checker_deployment_job_id }}"
+  register: job_result
+  until: job_result.finished
+  retries: 30
+  delay: 15
 ```
