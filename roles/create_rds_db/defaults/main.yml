@@ -9,8 +9,8 @@ software_component: ''
 base_domain: ''
 
 # ------------------
-# Shared Account VPC Peering
-ops_shared_vpc_cidr: ''
+# IP Prefix List of the VPN network(s)
+vpn_prefix_list_id_ipv4: ''
 
 # ------------------
 # Local VPC

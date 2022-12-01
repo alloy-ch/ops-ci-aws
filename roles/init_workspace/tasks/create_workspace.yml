@@ -1,8 +1,5 @@
 ---
 
-- name: 'check the common variables'
-  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
-
 - name: 'create temporary workspace directory'
   tempfile:
     state: 'directory'
@@ -30,7 +27,7 @@
       when: env != 'ops'
     - name: 'protect Kubernetes configuration file'
       file:
-        path: /root/.kube/config
+        path: ~/.kube/config
         mode: '0600'
       ignore_errors: true
       when: env != 'ops'

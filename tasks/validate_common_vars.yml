@@ -21,11 +21,27 @@
     home_aws_region: '{{ aws_region }}'
   when: home_aws_region is not defined or home_aws_region == ''
 
-- name: 'get the environment code from AWS account'
+- name: 'retrieve the SKIP_ENV_CHECK flag'
   set_fact:
-    env_aws: "{{ lookup('aws_ssm', '/ops-ci/environment', region=home_aws_region) }}"
+    skip_env_check: "{{ lookup('env', 'SKIP_ENV_CHECK') }}"
 
-- name: 'fail the process in case of environment mismatch'
-  when: env_aws != env
-  fail:
-    msg: "Ansible playbook is running with environment '{{ env }}' against AWS account for environment '{{ env_aws }}'"
+- name: 'check the environment consistency'
+  when: skip_env_check is undefined or skip_env_check == ''
+  block:
+    - name: 'get the environment code from AWS account'
+      set_fact:
+        env_aws: "{{ lookup('amazon.aws.aws_ssm', '/ops-ci/environment', region=home_aws_region) }}"
+
+    - name: 'fail the process in case of environment mismatch'
+      when: env_aws != env
+      fail:
+        msg: "Ansible playbook is running with environment '{{ env }}' against AWS account for environment '{{ env_aws }}'"
+
+    - name: 'get the project code from AWS account'
+      set_fact:
+        prj_aws: "{{ lookup('amazon.aws.aws_ssm', '/ops-ci/project_id', region=home_aws_region) }}"
+
+    - name: 'fail the process in case of project mismatch'
+      when: prj_aws != project_id
+      fail:
+        msg: "Ansible playbook is running with project '{{ project_id }}' against AWS account for project '{{ prj_aws }}'"

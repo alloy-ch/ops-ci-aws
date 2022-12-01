@@ -43,7 +43,7 @@ None
 ```ansible
 - name: 'create wildcard SSL certificate for the subdomain of each environment except at ops environment'
   include_role:
-    name: 'create_acm_ssl_certificate'
+    name: 'ringier.aws_cicd.create_acm_ssl_certificate'
   vars:
     domain_name: '{{ env }}.rcplus.io'
     acm_region: 'us-east-1'

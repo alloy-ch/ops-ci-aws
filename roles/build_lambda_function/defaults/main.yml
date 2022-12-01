@@ -1,0 +1,6 @@
+---
+
+# name:tag of the docker image for lambda runtime
+# Checkout https://hub.docker.com/r/amazon/aws-lambda-nodejs/tags, and https://github.com/aws/aws-lambda-base-images/tree/nodejs16.x
+# NOTE-zw: AWS node.js lambda runtime is in general many months behind the standard release schedule.
+lambda_runtime_docker_image_nodejs: 'amazon/aws-lambda-nodejs:16'

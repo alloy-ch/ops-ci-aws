@@ -1,0 +1,7 @@
+---
+
+- include_tasks: 'prechecks.yml'
+
+- include_tasks: 'shipper.yml'
+
+- include_tasks: 'subscription.yml'

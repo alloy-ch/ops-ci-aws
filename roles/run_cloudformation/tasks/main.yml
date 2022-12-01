@@ -1,8 +1,5 @@
 ---
 
-- name: '[{{ stack_name }}] check the common variables'
-  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
-
 #
 # jinja2 templating
 #
@@ -10,11 +7,24 @@
   template:
     src: '{{ template }}'
     dest: '{{ workspace_path }}/cloudformation.yml'
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
-- name: '[{{ stack_name }}] debug'
-  debug:
-    msg: 'rendered CloudFormation template: {{ workspace_path }}/cloudformation.yml'
+#
+# replace ≪ ≫
+#
+- name: '[{{ stack_name }}] restore ≪'
+  ansible.builtin.replace:
+    path: '{{ workspace_path }}/cloudformation.yml'
+    regexp: '≪'
+    replace: '\{\{'
+  no_log: '{{ ansible_verbosity < 3 }}'
+
+- name: '[{{ stack_name }}] restore ≫'
+  ansible.builtin.replace:
+    path: '{{ workspace_path }}/cloudformation.yml'
+    regexp: '≫'
+    replace: '\}\}'
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 #
 # check if AWS SAM is required
@@ -30,7 +40,7 @@
 
 - name: '[{{ stack_name }}] check if sam-cli exists'
   when: is_sam_required
-  block: 
+  block:
     - name: '[{{ stack_name }}] check if sam-cli exists'
       shell: command -v sam >/dev/null 2>&1
       register: rc_check_sam_cli
@@ -48,7 +58,7 @@
         basis_stack_name: "{{ (env + '-' + project_id + '-basis') if region != 'us-east-1' else (env + '-' + project_id + '-basis-us-east-1') }}"
 
     - name: '[{{ stack_name }}] get the CloudFormation stack outputs'
-      gather_stack_outputs:
+      ringier.aws_cicd.gather_stack_outputs:
         region: '{{ region }}'
         stack_name: '{{ basis_stack_name }}'
       register: basis_stack
@@ -87,20 +97,15 @@
 #
 # SAM processing, if relevant
 #
-- name: '[{{ stack_name }}] in case of SAM template: transform'
+- name: '[{{ stack_name }}] packing (use samcli if relevant)'
   command: >-
-    {{ 'sam' if does_sam_cli_exist else 'aws cloudformation' }} package
+    {{ 'sam' if is_sam_required and does_sam_cli_exist else 'aws cloudformation' }} package
        --template-file {{ workspace_path }}/cloudformation.yml
        --output-template-file {{ workspace_path }}/cloudformation-final.yml
        --s3-bucket {{ deployment_bucket }}
        --s3-prefix {{ git_info.repo_name }}
        --region {{ region }}
-  when: is_sam_required
   no_log: '{{ ansible_verbosity < 3 }}'
-
-- name: '[{{ stack_name }}] in case of classical CloudFormation template: copy'
-  command: cp {{ workspace_path }}/cloudformation.yml {{ workspace_path }}/cloudformation-final.yml
-  when: not is_sam_required
 
 #
 # finally, deploy
@@ -121,8 +126,11 @@
         Environment="{{ env }}"
         Name="{{ stack_name }}"
         Project="{{ project_id }}"
-        Repository="{{ git_info.repo_name }}"
-        {{ '' if skip_version_tag else 'Version="v' + project_version + '"' }}
+        Repository="{{ git_info.repo_name if repo_tag_override is not defined or repo_tag_override == '' else repo_tag_override }}"
+        {{ ('' if skip_version_tag else 'Version="v' + project_version + '"') if version_tag_override is not defined or version_tag_override == '' else 'Version="' + version_tag_override + '"' }}
+        {{ '' if skip_version_tag else 'GitBranch="' + git_info.branch_name + '"' }}
+        {{ '' if skip_version_tag else 'GitCommit="' + git_info.commit_hash + '"' }}
+        {{ '' if skip_version_tag else 'GitPendingChanges="' + git_info.has_pending_changes | string + '"' }}
       --no-fail-on-empty-changeset
 
 # deploy the non blocking way

@@ -36,7 +36,7 @@ None
 
 ```ansible
 - include_role:
-    name: 'create_db_user'
+    name: 'ringier.aws_cicd.create_db_user'
   vars:
     rds_endpoint_cloudformation_export_name: '{{ project_id }}-{{ software_component }}-rds-endpoint'
     app_db_username: 'crawler_readonly'

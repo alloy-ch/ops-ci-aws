@@ -9,9 +9,9 @@ Parameters:
   VpcCidr:
     Type: 'String'
     Description: 'VPC internal CIDR'
-  VpnCidr:
+  VpnIpPrefixListId:
     Type: 'String'
-    Description: 'VPN CIDR at the shared ops account'
+    Description: 'IP Prefix List of the VPN network(s)'
 
   RdsMasterUsername:
     Description: 'The username for the master/root user of the instance'
@@ -35,13 +35,13 @@ Parameters:
 
 
 Conditions:
+
   IsProd: !Equals [ '{{ env }}', 'prod' ]
 
 
 Resources:
 
   # ============================ RDS ==============================
-
   RdsSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -49,20 +49,20 @@ Resources:
       GroupDescription: 'Allow connections into RDS from VPN, local VPN, and k8s EC2 nodes'
       SecurityGroupIngress:
         - CidrIp: !Ref VpcCidr
-          FromPort: 5432
-          ToPort: 5432
+          FromPort: '{{ rds_port }}'
+          ToPort: '{{ rds_port }}'
           IpProtocol: 'tcp'
-        - CidrIp: !Ref VpnCidr
-          FromPort: 5432
-          ToPort: 5432
+        - SourcePrefixListId: !Ref VpnIpPrefixListId
+          FromPort: '{{ rds_port }}'
+          ToPort: '{{ rds_port }}'
           IpProtocol: 'tcp'
         - SourceSecurityGroupId: !ImportValue '{{ project_id }}-eks-nodes-sg'
-          FromPort: 5432
-          ToPort: 5432
+          FromPort: '{{ rds_port }}'
+          ToPort: '{{ rds_port }}'
           IpProtocol: 'tcp'
         - SourceSecurityGroupId: !ImportValue '{{ project_id }}-codebuild-sg'
-          FromPort: 5432
-          ToPort: 5432
+          FromPort: '{{ rds_port }}'
+          ToPort: '{{ rds_port }}'
           IpProtocol: 'tcp'
       Tags:
         - { Key: 'Name', Value: '{{ env }}-{{ project_id }}-{{ software_component }}-rds-sg' }
@@ -92,13 +92,12 @@ Resources:
     Properties:
       BackupRetentionPeriod: !If [IsProd, 7, 1]
       DatabaseName: '{{ rds_db_name }}'
-      DBClusterParameterGroupName: 'default.aurora-postgresql13'
       DBSubnetGroupName: !Ref RdsSubnetGroup
       DeletionProtection: false
       EnableIAMDatabaseAuthentication: false
       Engine: 'aurora-postgresql'
       MasterUsername: !Ref RdsMasterUsername
-      MasterUserPassword: !Sub "{{ '{{' }}resolve:ssm-secure:${RdsMasterUserPasswordSsmKeyName}:1{{ '}}' }}"
+      MasterUserPassword: !Sub "{{ '{{' }}resolve:ssm-secure:${RdsMasterUserPasswordSsmKeyName}{{ '}}' }}"
       Port: '{{ rds_port }}'
       PreferredBackupWindow: 03:00-04:00
       PreferredMaintenanceWindow: mon:04:00-mon:05:00
@@ -113,7 +112,8 @@ Resources:
         - { Key: 'Version', Value: 'v{{ project_version }}' }
         - { Key: 'Repository', Value: '{{ git_info.repo_name }}' }
 
-{% for instanceId in range(rds_instances_amount) %}
+#{% for instanceId in range(rds_instances_amount) %}
+#
   RdsInstance{{ instanceId }}:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -127,15 +127,17 @@ Resources:
       Engine: 'aurora-postgresql'
       MultiAZ: false  # aurora-postgresql does not need MultiAZ option as it replicates across all AZ anyway
       EnablePerformanceInsights: !If [IsProd, true, false]
-{% if env == 'prod' %}
-      PerformanceInsightsKMSKeyId: !ImportValue '{{ project_id }}-kms-secrets-key'
+#{% if env == 'prod' %}
+#
+      PerformanceInsightsKMSKeyId: !ImportValue '{{ project_id }}-kms-devops-key-id'
       PerformanceInsightsRetentionPeriod: 7
-{% endif %}
+#{% endif %}
+#
       PubliclyAccessible: false
       StorageEncrypted: false
-{% endfor %}
-  # ============================ Public Route 53 ==============================
+#{% endfor %}
 
+  # ============================ Public Route 53 ==============================
   RdsPublicDnsCname:
     Type: AWS::Route53::RecordSet
     Properties:
@@ -159,7 +161,6 @@ Resources:
       Type: 'CNAME'
 
   # ============================ Private Route 53 ==============================
-
   RdsPrivateDnsCname:
     Type: AWS::Route53::RecordSet
     Properties:

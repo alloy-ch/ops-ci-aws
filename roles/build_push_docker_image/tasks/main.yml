@@ -4,9 +4,6 @@
   fail: msg="missing var 'ecr_repository_name'"
   when: ecr_repository_name is not defined or ecr_repository_name == ''
 
-- name: '[{{ ecr_repository_name }}] check the common variables'
-  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
-
 # if working on a pre-built image, analyze the supplied name
 - name: '[{{ ecr_repository_name }}] get image name and tag for the pre-built image'
   set_fact:
@@ -44,7 +41,7 @@
 
 - name: '[{{ ecr_repository_name }}] tag the image with full name'
   command: 'docker tag {{ docker_image_with_tag }} {{ docker_image_full_name_and_tag }}'
-  no_log: true
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: '[{{ ecr_repository_name }}] push image to ECR'
   shell: 'docker push {{ docker_image_full_name_and_tag }} > /dev/null'
@@ -53,7 +50,7 @@
   when: adhoc_deploy
   block:
     - name: '[{{ ecr_repository_name }}] ad-hoc deployment: get the image repo digest'
-      shell: docker inspect {{ docker_image_full_name_and_tag }} | jq -r '.[0].RepoDigests[0]'
+      shell: docker inspect {{ docker_image_full_name_and_tag }} | jq -crM '.[0].RepoDigests[] | select(startswith("{{ ecr_registry_uri }}"))'
       register: docker_inspect
 
     - name: '[{{ ecr_repository_name }}] ad-hoc deployment: use the image repo digest as the docker image'

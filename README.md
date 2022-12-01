@@ -1,6 +1,6 @@
 # ops-ci-aws
 
-**Current version: v1.4.7**
+**Current version: v1.5.14**
 
 This repository holds the shared Ansible roles, modules and tasks for projects to be deployed into AWS. It creates an Ansible collection.
 
@@ -12,16 +12,16 @@ This repository holds the shared Ansible roles, modules and tasks for projects t
 
 ### Ansible roles
 
+*  [build_lambda_function](./roles/build_lambda_function/README.md)
 *  [build_push_docker_image](./roles/build_push_docker_image/README.md)
 *  [create_acm_ssl_certificate](./roles/create_acm_ssl_certificate/README.md)
 *  [create_db_user](./roles/create_db_user/README.md)
 *  [create_rds_db](./roles/create_rds_db/README.md)
-*  [create_ssm_param](./roles/create_ssm_param/README.md) _deprecated_
 *  [del_workspace](./roles/del_workspace/README.md)
 *  [deploy_to_k8s](./roles/deploy_to_k8s/README.md)
 *  [init_workspace](./roles/init_workspace/README.md)
 *  [run_cloudformation](./roles/run_cloudformation/README.md)
-
+*  [ship_logs_to_logzio](./roles/ship_logs_to_logzio/README.md)
 
 
 ## Usage
@@ -45,7 +45,7 @@ To install a specific git commit:
 ```shell-script
 ansible-galaxy collection install --force git+https://github.com/ringier-data/ops-ci-aws.git,7b60ddc245bc416b72d8ea6ed7b799885110f5e5
 ```
-A note for all the `ansible-galaxy collection install` examples above: `ansible-galaxy` itself does not handling the upgrade if the remote
+A note for all the `ansible-galaxy collection install` examples above: `ansible-galaxy` itself does not handle the upgrade if the remote
 collection has a higher version than the locally installed one, according to [this Github issue](https://github.com/ansible/ansible/issues/65699).
 To overcome this problem, either we use `--force` to *always* overwrite the local installation no matter whether the version is newer or
 older, or we use `--upgrade` to "force" the installation if (and only if) the remote version is newer than the local one.

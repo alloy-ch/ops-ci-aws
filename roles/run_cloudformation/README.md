@@ -25,9 +25,23 @@ Uploading the template to S3 before applying it removes the size limit at 51'200
 | `infrastructure_bucket_override` |    No     | str  | ``                   | Specify the S3 bucket to store the rendered CloudFormation template. This parameter **SHOULD ONLY BE USED** for the initial bootstrap repo to create the permanent S3 bucket for infrastructure. |
 | `template`                       |    Yes    | str  | -                    | Filepath to the CloudFormation template, use Jinja2 templating grammar if it makes things easier.                                                                                                |
 | `stack_name`                     |    Yes    | str  | -                    | Name of the CloudFormation stack to be created.                                                                                                                                                  |
-| `async_deploy`                     |    No    | boolean  | false                    | By setting this value to true, Ansible starts the task and immediately moves on to the next task without waiting for a result, see https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_async.html#run-tasks-concurrently-poll-0                                                                                                                           |
-| `async_duration`                     |    No    | int  | 300                    | Only relevant in case `async_deploy` has been enabled. Seconds to wait before timing out the execution of the async deployment.
+| `skip_version_tag`               |    No     | bool | false                | When true, the CloudFormation stack will not have `Version` tag.                                                                                                                                 |
+| `version_tag_override`           |    No     | str  | -                    | When specified, the CloudFormation stack will have `Version` tagged with the specified value instead of the default `{{ version }}`. This parameter overrules `skip_version_tag`.                |
+| `repo_tag_override`              |    No     | str  | -                    | When specified, the CloudFormation stack will have `Repository` tagged with the specified value instead of the default `{{ git_info.repo_name }}`.                                               |
+| `async_deploy`                     |    No    | bool  | false                    | By setting this value to true, Ansible starts the task and immediately moves on to the next task without waiting for a result, see https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_async.html#run-tasks-concurrently-poll-0                                                                                                                           |
+| `async_duration`                     |    No    | number  | 300                    | Only relevant in case `async_deploy` has been enabled. Seconds to wait before timing out the execution of the async deployment.
 |
+
+Regarding `version_tag_override` and `repo_tag_override`, we have some common roles
+(e.g. [ship_logs_to_logzio](../ship_logs_to_logzio/README.md)) create potentially multiple "instances" within the same AWS account.
+We need it to keep some tags stable instead of always inheriting the tags set from the repo referring this role. 
+
+Regarding `version_tag_override`, for the override value, if the semver is used, do not forget the prefix `v`. e.g. to tag `1.5.5` please specify `v1.5.5`
+
+When `skip_version_tag` is set to true, the Cloudformation stack will not be tagged with `Version`. If it is false, the Cloudformation
+stack has tag `Version`, plus the additional ones including `GitBranch`, `GitCommit`, and `GitPendingChanges`.
+These three `Git*` tags indicates from which code line the stack was deployed from. 
+
 
 ## Outputs
 
@@ -44,7 +58,7 @@ None
   set_fact:
     ecr_stack_name: '{{ ecr_repository_name }}-ecr'
 - include_role:
-    name: 'run-cloudformation'
+    name: 'ringier.aws_cicd.run_cloudformation'
   vars:
     stack_name: '{{ ecr_stack_name }}'
     template: '{{ cf_ecr_template }}'
@@ -55,7 +69,7 @@ None
 
 - name: 'create AWS EKS cluster'
   include_role:
-    name: 'run-cloudformation'
+    name: 'ringier.aws_cicd.run_cloudformation'
   vars:
     stack_name: '{{ env }}-{{ project_id }}-eks-cluster'
     template: '{{ template_file }}'

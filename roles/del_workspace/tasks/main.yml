@@ -1,10 +1,8 @@
 ---
 
-- name: 'check the common variables'
-  include_tasks: '{{ role_path }}/../../tasks/validate_common_vars.yml'
-
 - name: 'delete temporary workspace directory'
   file:
     path: '{{ workspace_path }}'
     state: 'absent'
   when: workspace_path is defined
+  no_log: '{{ ansible_verbosity < 3 }}'
