@@ -105,7 +105,9 @@
 #
 # finally, deploy
 #
+# deploy the regular way (blocking)
 - name: '[{{ stack_name }}] apply stack updates'
+  when: not async_deploy
   command: >-
     {{ 'sam' if is_sam_required and does_sam_cli_exist else 'aws cloudformation' }} deploy
       --template-file {{ workspace_path }}/cloudformation-final.yml
@@ -122,3 +124,26 @@
         Repository="{{ git_info.repo_name }}"
         {{ '' if skip_version_tag else 'Version="v' + project_version + '"' }}
       --no-fail-on-empty-changeset
+
+# deploy the non blocking way
+- name: "[{{ stack_name }}] apply stack updates"
+  when: async_deploy
+  command: >-
+    {{ 'sam' if is_sam_required and does_sam_cli_exist else 'aws cloudformation' }} deploy
+      --template-file {{ workspace_path }}/cloudformation-final.yml
+      --s3-bucket {{ deployment_bucket }}
+      --s3-prefix {{ git_info.repo_name }}
+      --stack-name {{ stack_name }}
+      --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
+      --region {{ region }}
+      {{ parameter_overrides }}
+      --tags
+        Environment="{{ env }}"
+        Name="{{ stack_name }}"
+        Project="{{ project_id }}"
+        Repository="{{ git_info.repo_name if repo_tag_override is not defined or repo_tag_override == '' else repo_tag_override }}"
+        {{ ('' if skip_version_tag else 'Version="v' + project_version + '"') if version_tag_override is not defined or version_tag_override == '' else 'Version="' + version_tag_override + '"' }}
+      --no-fail-on-empty-changeset
+  async: "{{ async_duration }}"
+  poll: 0
+  register: deploy_cf

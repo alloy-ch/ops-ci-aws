@@ -4,3 +4,5 @@ region: '{{ aws_region }}'
 template_parameters: {}
 infrastructure_bucket_override: ''
 skip_version_tag: false
+async_deploy: false
+async_duration: 300
