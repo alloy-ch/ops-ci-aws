@@ -57,13 +57,15 @@
   ansible.posix.synchronize:
     src: '{{ source_dir }}/'
     dest: '{{ intermediate_dir }}'
-    copy_links: 'yes'
-    recursive: 'yes'
-    delete: 'yes'
+    copy_links: yes
+    recursive: yes
+    delete: yes
     rsync_opts:
+      - '--exclude=.coverage'
       - '--exclude=coverage'
       - '--exclude=dist'
       - '--exclude=node_modules'
+      - '--exclude=.venv'
       - '--exclude=venv'
   no_log: '{{ ansible_verbosity < 3 }}'
 
