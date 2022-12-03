@@ -61,7 +61,7 @@ Resources:
         - { Key: 'Name', Value: '{{ logzio_lambda_name }}' }
         - { Key: 'Project', Value: '{{ project_id }}' }
         - { Key: 'Environment', Value: '{{ env }}' }
-        - { Key: 'Version', Value: 'v1.5.15' }
+        - { Key: 'Version', Value: 'v1.5.15' } # managed by bumpsemver, do not manually change this
         - { Key: 'Repository', Value: 'ops-ci-aws' }
 
   LogzioShipperLambda:
