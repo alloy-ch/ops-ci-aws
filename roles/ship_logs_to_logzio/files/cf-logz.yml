@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: 'RC+/DevOps - Logs collector for logz.io (project: {{ env }}-{{ project_id }}, format: {{ logzio_format }}, type: {{ logzio_type }}) (v1.5.15)'
+Description: 'RC+/DevOps - Logs collector for logz.io (project: {{ env }}-{{ project_id }}, format: {{ logzio_format }}, type: {{ logzio_type }}) (v1.6.0)'
 
 
 Resources:
@@ -49,7 +49,7 @@ Resources:
         - { Key: 'Name', Value: '{{ logzio_lambda_name }}-role' }
         - { Key: 'Project', Value: '{{ project_id }}' }
         - { Key: 'Environment', Value: '{{ env }}' }
-        - { Key: 'Version', Value: 'v1.5.15' }
+        - { Key: 'Version', Value: 'v1.6.0' }
         - { Key: 'Repository', Value: 'ops-ci-aws' }
 
   LogzioShipperLogGroup:
@@ -61,7 +61,7 @@ Resources:
         - { Key: 'Name', Value: '{{ logzio_lambda_name }}' }
         - { Key: 'Project', Value: '{{ project_id }}' }
         - { Key: 'Environment', Value: '{{ env }}' }
-        - { Key: 'Version', Value: 'v1.5.15' } # managed by bumpsemver, do not manually change this
+        - { Key: 'Version', Value: 'v1.6.0' } # managed by bumpsemver, do not manually change this
         - { Key: 'Repository', Value: 'ops-ci-aws' }
 
   LogzioShipperLambda:
@@ -91,7 +91,7 @@ Resources:
         - { Key: 'Name', Value: '{{ logzio_lambda_name }}' }
         - { Key: 'Project', Value: '{{ project_id }}' }
         - { Key: 'Environment', Value: '{{ env }}' }
-        - { Key: 'Version', Value: 'v1.5.15' }
+        - { Key: 'Version', Value: 'v1.6.0' }
         - { Key: 'Repository', Value: 'ops-ci-aws' }
 
 
