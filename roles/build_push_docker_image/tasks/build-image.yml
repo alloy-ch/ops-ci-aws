@@ -1,5 +1,28 @@
 ---
 
+- name: '[{{ ecr_repository_name }}] set image name and tag for the image to be built'
+  set_fact:
+    comp_image: '{{ ecr_repository_name }}'
+    comp_tag: '{{ project_version }}'
+
+- name: "[{{ ecr_repository_name }}] assemble the image's name"
+  set_fact:
+    docker_image_with_tag: '{{ comp_image }}:{{ comp_tag }}'
+
+- name: "[{{ ecr_repository_name }}] assemble the image's full name"
+  set_fact:
+    docker_image_full_name_and_tag: '{{ ecr_registry_uri }}:{{ comp_tag }}'
+
+- name: '[{{ ecr_repository_name }}] clear existing docker_build_args_str'
+  set_fact:
+    docker_build_args_str: ''
+
+- name: '[{{ ecr_repository_name }}] build docker_build_args_str'
+  set_fact:
+    docker_build_args_str: '{{ docker_build_args_str }} --build-arg {{ item.key }}="{{ item.value }}"'
+  with_items: '{{ docker_build_args | default({}) | dict2items }}'
+  when: docker_build_args is defined and docker_build_args.keys()|length > 0
+
 - name: '[{{ ecr_repository_name }}] get NPMRC_ENCODED from the environment variable'
   set_fact:
     npmrc_encoded: "{{ lookup('env', 'NPMRC_ENCODED') }}"
@@ -9,17 +32,35 @@
   fail: msg="missing environment variable 'NPMRC_ENCODED'"
   when: npmrc_encoded == ''
 
-# build build_arg string
-#
-- name: '[{{ ecr_repository_name }}] clear existing docker_build_args_str'
-  set_fact:
-    docker_build_args_str: ''
-- name: '[{{ ecr_repository_name }}] build docker_build_args_str'
-  set_fact:
-    docker_build_args_str: '{{ docker_build_args_str }} --build-arg {{ item.key }}="{{ item.value }}"'
-  with_items: '{{ docker_build_args | default({}) | dict2items }}'
-  when: docker_build_args is defined and docker_build_args.keys()|length > 0
+- include_tasks: 'platform-determination.yml'
 
-- name: '[{{ ecr_repository_name }}] build the image'
-  command: |
-    docker build --platform linux/amd64 --rm --quiet --tag {{ docker_image_with_tag }} {{ code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
+- debug:
+    msg: 'The Docker image is to be built for platform(s) "{{ buildx_platform_param }}" at platform "{{ local_platform }}"'
+
+- name: 'do not use BuildKit if possible'
+  when: buildx_platform_param == local_platform
+  block:
+    - name: '[{{ ecr_repository_name }}] build the image'
+      command: |
+        docker build --platform {{ local_platform }} --rm --quiet --tag {{ docker_image_full_name_and_tag }} {{ code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
+    - name: '[{{ ecr_repository_name }}] push the image to ECR'
+      shell: 'docker push {{ docker_image_full_name_and_tag }} > /dev/null'
+
+- name: 'use BuildKit if needed'
+  when: buildx_platform_param != local_platform
+  block:
+    - name: '[{{ ecr_repository_name }}] inspect our image builder'
+      command: docker buildx inspect rcplus
+      no_log: true
+      ignore_errors: true
+      register: r_buildx_rcplus
+    - name: '[{{ ecr_repository_name }}] initialize the builder if needed'
+      when: r_buildx_rcplus.rc != 0
+      command: docker buildx create --bootstrap --name rcplus --platform linux/amd64,linux/arm64 --use
+    - name: '[{{ ecr_repository_name }}] build the image'
+      command: |
+        docker buildx build --push --platform {{ buildx_platform_param }} --builder rcplus --quiet --tag {{ docker_image_full_name_and_tag }} {{ code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
+
+- name: '[{{ ecr_repository_name }}] tag the image with local name'
+  command: 'docker tag {{ docker_image_full_name_and_tag}} {{ docker_image_with_tag }}'
+  no_log: '{{ ansible_verbosity < 3 }}'

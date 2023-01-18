@@ -16,6 +16,7 @@ This Ansible role:
 | `prebuilt_image_supplied` |     No      | boolean | `false`                       | Set to `true` will ignore docker build process and take the existing image for ECR publishing                                                                                                                                  |
 | `adhoc_deploy`            |     No      | boolean | `false`                       | Ignored when `prebuilt_image_supplied` is truthy. When `adhoc_deploy` is truthy, use the docker image repo digest as the version to tag Docker image. Otherwise, use `{{ project_version }} as the version for image tagging.` |
 | `share_with_org_unit`     |     No      |   str   | `''`                          | Set to the OU path like `o-xxxxxxxxxx/*/ou-xxxx-xxxxxxxx/*` to permit the readonly access to the image from all AWS accounts within the organization unit.                                                                     |
+| `build_multi_arch`        |     No      | boolean | `false`                       | If truthy, this role builds the multi-arch image for amd64 and arm64                                                                                                                                                           |
 | `docker_build_args`       | Conditional |  dict   | `{}`                          | Mandatory when `prebuilt_image_supplied` is falsy. Key-value pairs of the values to supply for `docker build --build-arg ...`                                                                                                  |
 | `prebuilt_image_tag`      | Conditional |   str   | `''`                          | Mandatory when `prebuilt_image_supplied` is truthy. Tag of the prebuilt docker image for ECR publishing.                                                                                                                       |
 
@@ -56,6 +57,7 @@ This Ansible role:
     ecr_repository_name: '{{ env }}-{{ project_id }}-database-test'
     code_path: '{{ playbook_dir }}/../src'    # we run Docker build using '{{ playbook_dir }}/../src/Dockerfile'
     share_with_org_unit: 'o-umabch1ai4/*/ou-d3mj-k351defg/*'
+    build_multi_arch: true
     docker_build_args:
       HTTP_PROXY: 'https://10.20.30.2:1234'    # results in docker build --build-arg HTTP_PROXY=https://10.20.30.2:1234
 

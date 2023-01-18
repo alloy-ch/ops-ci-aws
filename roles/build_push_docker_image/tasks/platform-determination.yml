@@ -1,0 +1,96 @@
+# Determin the target Docker image environment, if no prebuilt image is supplied (when role paramter
+# `prebuilt_image_supplied` is truthy)
+#
+# The precedence (ordered from high to low):
+# A. we determine if we built multi-arch firstly:
+#    1. if the role `build_push_docker_image` has role parameter `build_multi_arch` as `true` or `false`
+#       (case-insensitive string), the corresponding boolean value will be respected. Otherwise,
+#    2. if the repo has '/deploydest.yml' with `multi_arch` as `true` (case-insensitive string), the image will be
+#       multi-arch. Otherwise,
+#    3 the image be NOT be multi-arch
+# B. in case we don't build multi-arch image:
+#    1. if `target_platform` does not exist in '/deploydest.yml', the image will be built for `amd64`. Otherwise,
+#    2. if the repo has '/deploydest.yml' with `target_platform` as `arm64` (in correspondance to architecture
+#       `aarch64`), the image will be built for `arm64`. Otherwise,
+#    3. the image will be built for platform `amd64`
+# NOTE: for the intermediate flag below, we use true, false, '' value.
+---
+- name: '[{{ ecr_repository_name }}] load repo settings'
+  ansible.builtin.include_vars:
+    file: '{{ playbook_dir }}/../deploydest.yml'
+    name: repo_settings
+
+- name: '[{{ ecr_repository_name }}] "unset" multi-arch flag'
+  set_fact:
+    flag_multi_arch: ''
+
+- name: '[{{ ecr_repository_name }}] check if role parameter for multi-arch is truthy'
+  # A.1.truthy
+  when: build_multi_arch is defined and build_multi_arch | string | lower == 'true'
+  set_fact:
+    flag_multi_arch: true
+
+- name: '[{{ ecr_repository_name }}] check if role parameter for multi-arch is falsy'
+  # A.1.falsy
+  when: build_multi_arch is defined and build_multi_arch | string | lower == 'false'
+  set_fact:
+    flag_multi_arch: false
+
+- name: '[{{ ecr_repository_name }}] check if repo setting for multi-arch is truthy'
+  # A.2
+  when: flag_multi_arch == '' and (repo_settings.multi_arch | default(false) | bool)
+  set_fact:
+    flag_multi_arch: true
+
+- name: '[{{ ecr_repository_name }}] normalize multi-arch flag to boolean'
+  # A.3
+  when: not flag_multi_arch
+  set_fact:
+    flag_multi_arch: false
+
+- name: '[{{ ecr_repository_name }}] set target platform as multi-arch'
+  # A.truthy
+  when: flag_multi_arch
+  set_fact:
+    buildx_platform_param: 'linux/amd64,linux/arm64'
+
+- name: '[{{ ecr_repository_name }}] check if target platform is defined'
+  # B.1
+  when: not flag_multi_arch and repo_settings.target_platform is not defined
+  set_fact:
+    buildx_platform_param: 'linux/amd64'
+
+- name: '[{{ ecr_repository_name }}] check if target platform is ARM'
+  # B.2
+  when: not flag_multi_arch and repo_settings.target_platform is defined and (repo_settings.target_platform | lower == 'arm64' or repo_settings.target_platform | lower == 'aarch64')
+  set_fact:
+    buildx_platform_param: 'linux/arm64'
+
+- name: '[{{ ecr_repository_name }}] built for X86 in all other cases'
+  # B.3
+  when: not flag_multi_arch and repo_settings.target_platform is defined and (repo_settings.target_platform | lower != 'arm64' and repo_settings.target_platform | lower != 'aarch64')
+  set_fact:
+    buildx_platform_param: 'linux/amd64'
+
+- name: '[{{ ecr_repository_name }}] "unset" local platform'
+  set_fact:
+    local_platform: ''
+
+- name: '[{{ ecr_repository_name }}] get the local architecture'
+  command: 'uname -m'
+  register: r_arch
+
+- name: '[{{ ecr_repository_name }}] check if local platform is ARM'
+  when: r_arch.stdout == 'aarch64'
+  set_fact:
+    local_platform: 'linux/arm64'
+
+- name: '[{{ ecr_repository_name }}] check if local platform is X86'
+  when: r_arch.stdout == 'x86_64'
+  set_fact:
+    local_platform: 'linux/amd64'
+
+- name: '[{{ ecr_repository_name }}] fail the process in case of unknown local platform'
+  when: r_arch.stdout != 'aarch64' and r_arch.stdout != 'x86_64'
+  fail:
+    msg: 'Unknown local architecture detected: "{{ r_arch.stdout }}", while we support only "x86_64" and "aarch64"'
