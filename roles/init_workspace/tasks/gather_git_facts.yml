@@ -41,13 +41,17 @@
       register: r_git_branch
       no_log: '{{ ansible_verbosity < 3 }}'
 
+    - name: 'check if we are in CodeBuild environment'
+      set_fact:
+        codebuild_build_number: "{{ lookup('ansible.builtin.env', 'CODEBUILD_BUILD_NUMBER', default='') }}"
+
     - set_fact:
         git_info:
           repo_name: '{{ r_git_repo_name.stdout }}'
           branch_name: '{{ r_git_branch.stdout }}'
           commit_hash: '{{ r_git_commit_hash.stdout }}'
           commit_hash_short: '{{ r_git_commit_hash_short.stdout }}'
-          has_pending_changes: "{{ r_git_short_status.stdout == 'dirty' }}"
+          has_pending_changes: "{{ false if codebuild_build_number != '' else r_git_short_status.stdout == 'dirty' }}"
   when: is_within_git_repo
 
 - name: 'create an empty git repository info dict'
