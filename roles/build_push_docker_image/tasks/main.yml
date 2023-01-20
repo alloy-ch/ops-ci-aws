@@ -12,17 +12,6 @@
 - include_tasks: 'build-image.yml'
   when: not prebuilt_image_supplied
 
-- name: '[{{ ecr_repository_name }}] ad-hoc deployment: use the docker image repo digest'
-  when: adhoc_deploy
-  block:
-    - name: '[{{ ecr_repository_name }}] ad-hoc deployment: get the image repo digest'
-      shell: docker inspect {{ docker_image_full_name_and_tag }} | jq -crM '.[0].RepoDigests[] | select(startswith("{{ ecr_registry_uri }}"))'
-      register: docker_inspect
-
-    - name: '[{{ ecr_repository_name }}] ad-hoc deployment: use the image repo digest as the docker image'
-      set_fact:
-        docker_image_full_name_and_tag: '{{ docker_inspect.stdout }}'
-
 - name: '[{{ ecr_repository_name }}] show the result'
   debug:
     msg: "Docker image is published as '{{ docker_image_full_name_and_tag }}'"
