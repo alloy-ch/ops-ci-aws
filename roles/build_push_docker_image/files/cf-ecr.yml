@@ -1,15 +1,19 @@
 ---
 
 AWSTemplateFormatVersion: 2010-09-09
-Description: 'ECR for {{ ecr_repository_name }} (v{{ project_version }})'
+Description: 'RC+/DevOps - ECR for {{ ecr_repository_name }} (v{{ project_version }})'
 
 
 Resources:
+
   EcrRepository:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: '{{ ecr_repository_name }}'
       LifecyclePolicy:
+        # NOTE-zw: the lovely AWS makes inconsistency between such a short distance. Here the `LifecyclePolicyText`
+        # is literally a text (of type String), while several lines down there, the `RepositoryPolicyText` is a
+        # JsonObject, therefore we could use the YAML representation...
         LifecyclePolicyText: |
           {
             "rules": [{
@@ -41,6 +45,26 @@ Resources:
               }
             }]
           }
+#{% if share_with_org_unit is defined and share_with_org_unit != '' %}
+#
+      RepositoryPolicyText:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: 'AllowPullFromAccountsInOU'
+            Effect: 'Allow'
+            Principal: '*'
+            Action:
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+              - 'ecr:DescribeImages'
+              - 'ecr:DescribeRepositories'
+            Condition:
+              ForAnyValue:StringLike:
+                aws:PrincipalOrgPaths:
+                  - '{{ share_with_org_unit }}'
+#{% endif %}
+#
       Tags:
         - { Key: 'Name', Value: '{{ ecr_repository_name }}-ecr' }
         - { Key: 'Project', Value: '{{ project_id }}' }

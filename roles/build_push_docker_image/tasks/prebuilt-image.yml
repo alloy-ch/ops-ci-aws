@@ -1,0 +1,24 @@
+---
+
+- name: '[{{ ecr_repository_name }}] get image name and tag for the pre-built image'
+  set_fact:
+    comp_image: '{{ prebuilt_image_tag.split(":")[0] }}'
+    comp_tag: '{{ prebuilt_image_tag.split(":")[1] }}'
+    docker_image_with_tag: '{{ prebuilt_image_tag }}'
+  ignore_errors: true
+
+- name: "[{{ ecr_repository_name }}] default to 'latest' if the version tag is not supplied"
+  set_fact:
+    comp_tag: 'latest'
+  when: comp_tag is not defined or comp_tag == ''
+
+- name: "[{{ ecr_repository_name }}] assemble the image's full name"
+  set_fact:
+    docker_image_full_name_and_tag: '{{ ecr_registry_uri }}:{{ comp_tag }}'
+
+- name: '[{{ ecr_repository_name }}] tag the image with full name'
+  command: 'docker tag {{ docker_image_with_tag }} {{ docker_image_full_name_and_tag }}'
+  no_log: '{{ ansible_verbosity < 3 }}'
+
+- name: '[{{ ecr_repository_name }}] push the image to ECR'
+  shell: 'docker push {{ docker_image_full_name_and_tag }} > /dev/null'
