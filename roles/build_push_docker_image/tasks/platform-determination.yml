@@ -81,7 +81,11 @@
   register: r_arch
 
 - name: '[{{ ecr_repository_name }}] check if local platform is ARM'
-  when: r_arch.stdout == 'aarch64'
+  # NOTE-zw: here we apply a workaround to cope with the different behavior of POSIX systems on ARM at Apple M1/M2 chipset
+  # Running directly at the macOS terminal `uname -m` gives `arm64`, but at the same terminal, the following command
+  # retuens `aarch64` as it should be:
+  #     docker run -it --rm --entrypoint sh ubuntu:22.04 -c "uname -m"
+  when: r_arch.stdout == 'aarch64' or r_arch.stdout == 'arm64'
   set_fact:
     local_platform: 'linux/arm64'
 
@@ -91,6 +95,6 @@
     local_platform: 'linux/amd64'
 
 - name: '[{{ ecr_repository_name }}] fail the process in case of unknown local platform'
-  when: r_arch.stdout != 'aarch64' and r_arch.stdout != 'x86_64'
+  when: r_arch.stdout != 'aarch64' and r_arch.stdout != 'arm64' and r_arch.stdout != 'x86_64'
   fail:
-    msg: 'Unknown local architecture detected: "{{ r_arch.stdout }}", while we support only "x86_64" and "aarch64"'
+    msg: 'Unknown local architecture detected: "{{ r_arch.stdout }}", while we support only "x86_64", "arm64" and "aarch64"'
