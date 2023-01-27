@@ -78,7 +78,7 @@
     - name: '[{{ ecr_repository_name }}] install emulators'
       when: r_buildx_rcplus.rc != 0
       shell: |
-        docker run --privileged --rm docker.rcplus.io/tonistiigi/binfmt --install arm64,amd64
+        docker run --privileged --rm public.ecr.aws/eks-distro-build-tooling/binfmt-misc:qemu-v7.0.0 --install arm64,amd64
     - name: '[{{ ecr_repository_name }}] build the image'
       shell: |
         docker buildx build --allow security.insecure --push --platform {{ buildx_platform_param }} --builder rcplus --quiet --tag {{ docker_image_full_name_and_tag }} --tag {{ docker_image_full_name_with_latest_tag }} {{ code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
