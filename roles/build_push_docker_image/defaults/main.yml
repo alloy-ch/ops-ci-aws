@@ -5,3 +5,4 @@ prebuilt_image_supplied: false
 prebuilt_image_tag: ''
 docker_build_args: {}
 adhoc_deploy: false
+extra_buildx_build_args: ''
