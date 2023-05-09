@@ -20,6 +20,7 @@
     docker_build_args_str: '{{ docker_build_args_str }} --build-arg {{ item.key }}="{{ item.value }}"'
   with_items: '{{ docker_build_args | default({}) | dict2items }}'
   when: docker_build_args is defined and docker_build_args.keys()|length > 0
+  no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: '[{{ ecr_repository_name }}] get NPMRC_ENCODED from the environment variable'
   set_fact:
@@ -43,7 +44,8 @@
   block:
     - name: '[{{ ecr_repository_name }}] build the image'
       command: |
-        docker build --platform {{ local_platform }} --rm --quiet --tag {{ docker_image_full_name_and_tag }} {{ code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
+        docker build --platform {{ local_platform }} --rm --tag {{ docker_image_full_name_and_tag }} {{ code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
+      no_log: '{{ ansible_verbosity < 3 }}'
     - name: '[{{ ecr_repository_name }}] push the image to ECR'
       shell: 'docker push {{ docker_image_full_name_and_tag }} > /dev/null'
     - name: '[{{ ecr_repository_name }}] tag the local image without scope'
@@ -81,8 +83,9 @@
         docker run --privileged --rm public.ecr.aws/eks-distro-build-tooling/binfmt-misc:qemu-v7.0.0 --install arm64,amd64
     - name: '[{{ ecr_repository_name }}] build the image'
       shell: |
-        docker buildx build --allow security.insecure --push --platform {{ buildx_platform_param }} --builder rcplus --quiet {{ extra_buildx_build_args }} --tag {{ docker_image_full_name_and_tag }} --tag {{ docker_image_full_name_with_latest_tag }} {{ code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
+        docker buildx build --allow security.insecure --push --platform {{ buildx_platform_param }} --builder rcplus {{ extra_buildx_build_args }} --tag {{ docker_image_full_name_and_tag }} --tag {{ docker_image_full_name_with_latest_tag }} {{ code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
       register: r_buildx_build
+      no_log: '{{ ansible_verbosity < 3 }}'
     - name: '[{{ ecr_repository_name }}] ad-hoc deployment: use the image repo digest as the docker image'
       # NOTE-zw: hacky workaround here. Because docker-buildx does not leave a local footprint, and we cannot inspect
       # a remote image without pulling it back. Here we take the quiet stdout output of buildx, which is sha256:xxx...xxx
