@@ -83,12 +83,26 @@
         docker run --privileged --rm public.ecr.aws/eks-distro-build-tooling/binfmt-misc:qemu-v7.0.0 --install arm64,amd64
     - name: '[{{ ecr_repository_name }}] build the image'
       shell: |
-        docker buildx build --allow security.insecure --push --platform {{ buildx_platform_param }} --builder rcplus {{ extra_buildx_build_args }} --tag {{ docker_image_full_name_and_tag }} --tag {{ docker_image_full_name_with_latest_tag }} {{ code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
-      register: r_buildx_build
+        docker buildx build \
+          --allow security.insecure \
+          --push \
+          --platform {{ buildx_platform_param }} \
+          --builder rcplus {{ extra_buildx_build_args }} \
+          --tag {{ docker_image_full_name_and_tag }} \
+          --tag {{ docker_image_full_name_with_latest_tag }} \
+          --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }} \
+          {% if adhoc_deploy %}--iidfile {{ code_path }}/docker-image-id {% endif %} \
+          {{ code_path }}
       no_log: '{{ ansible_verbosity < 3 }}'
-    - name: '[{{ ecr_repository_name }}] ad-hoc deployment: use the image repo digest as the docker image'
-      # NOTE-zw: hacky workaround here. Because docker-buildx does not leave a local footprint, and we cannot inspect
-      # a remote image without pulling it back. Here we take the quiet stdout output of buildx, which is sha256:xxx...xxx
-      when: adhoc_deploy
-      set_fact:
-        docker_image_full_name_and_tag: '{{ ecr_registry_uri }}@{{ r_buildx_build.stdout }}'
+    - when: adhoc_deploy
+      block:
+        - name: '[{{ ecr_repository_name }}] ad-hoc deployment: fetch the image id'
+          shell: cat {{ code_path }}/docker-image-id
+          register: r_buildx_build
+        - name: '[{{ ecr_repository_name }}] ad-hoc deployment: use the image repo digest as the docker image'
+          set_fact:
+            docker_image_full_name_and_tag: '{{ ecr_registry_uri }}@{{ r_buildx_build.stdout }}'
+        - name: '[{{ ecr_repository_name }}] ad-hoc deployment: drop the image id file'
+          file:
+            path: '{{ code_path }}/docker-image-id'
+            state: absent
