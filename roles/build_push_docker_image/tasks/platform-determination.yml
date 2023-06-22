@@ -15,6 +15,7 @@
 #    3. the image will be built for platform `amd64`
 # NOTE: for the intermediate flag below, we use true, false, '' value.
 ---
+
 - name: '[{{ ecr_repository_name }}] load repo settings'
   ansible.builtin.include_vars:
     file: '{{ playbook_dir }}/../deploydest.yml'
@@ -48,29 +49,32 @@
   set_fact:
     flag_multi_arch: false
 
-- name: '[{{ ecr_repository_name }}] set target platform as multi-arch'
-  # A.truthy
-  when: flag_multi_arch
-  set_fact:
-    buildx_platform_param: 'linux/amd64,linux/arm64'
+- name: '[{{ ecr_repository_name }}] if buildx_platform_param is not defined, determined it'
+  when: buildx_platform_param is not defined
+  block:
+    - name: '[{{ ecr_repository_name }}] set target platform as multi-arch'
+      # A.truthy
+      when: flag_multi_arch
+      set_fact:
+        buildx_platform_param: 'linux/amd64,linux/arm64'
 
-- name: '[{{ ecr_repository_name }}] check if target platform is defined'
-  # B.1
-  when: not flag_multi_arch and repo_settings.target_platform is not defined
-  set_fact:
-    buildx_platform_param: 'linux/amd64'
+    - name: '[{{ ecr_repository_name }}] check if target platform is defined'
+      # B.1
+      when: not flag_multi_arch and repo_settings.target_platform is not defined
+      set_fact:
+        buildx_platform_param: 'linux/amd64'
 
-- name: '[{{ ecr_repository_name }}] check if target platform is ARM'
-  # B.2
-  when: not flag_multi_arch and repo_settings.target_platform is defined and (repo_settings.target_platform | lower == 'arm64' or repo_settings.target_platform | lower == 'aarch64')
-  set_fact:
-    buildx_platform_param: 'linux/arm64'
+    - name: '[{{ ecr_repository_name }}] check if target platform is ARM'
+      # B.2
+      when: not flag_multi_arch and repo_settings.target_platform is defined and (repo_settings.target_platform | lower == 'arm64' or repo_settings.target_platform | lower == 'aarch64')
+      set_fact:
+        buildx_platform_param: 'linux/arm64'
 
-- name: '[{{ ecr_repository_name }}] built for X86 in all other cases'
-  # B.3
-  when: not flag_multi_arch and repo_settings.target_platform is defined and (repo_settings.target_platform | lower != 'arm64' and repo_settings.target_platform | lower != 'aarch64')
-  set_fact:
-    buildx_platform_param: 'linux/amd64'
+    - name: '[{{ ecr_repository_name }}] built for X86 in all other cases'
+      # B.3
+      when: not flag_multi_arch and repo_settings.target_platform is defined and (repo_settings.target_platform | lower != 'arm64' and repo_settings.target_platform | lower != 'aarch64')
+      set_fact:
+        buildx_platform_param: 'linux/amd64'
 
 - name: '[{{ ecr_repository_name }}] "unset" local platform'
   set_fact:
