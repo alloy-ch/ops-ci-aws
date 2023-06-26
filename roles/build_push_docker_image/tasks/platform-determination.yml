@@ -1,4 +1,4 @@
-# Determin the target Docker image environment, if no prebuilt image is supplied (when role paramter
+# Determine the target Docker image environment if no prebuilt image is supplied (when role parameter
 # `prebuilt_image_supplied` is truthy)
 #
 # The precedence (ordered from high to low):
@@ -10,9 +10,9 @@
 #    3 the image be NOT be multi-arch
 # B. in case we don't build multi-arch image:
 #    1. if `target_platform` does not exist in '/deploydest.yml', the image will be built for `amd64`. Otherwise,
-#    2. if the repo has '/deploydest.yml' with `target_platform` as `arm64` (in correspondance to architecture
+#    2. if the repo has '/deploydest.yml' with `target_platform` as `arm64` (in correspondence to architecture
 #       `aarch64`), the image will be built for `arm64`. Otherwise,
-#    3. the image will be built for platform `amd64`
+#    3. the image will be built for the platform `amd64`
 # NOTE: for the intermediate flag below, we use true, false, '' value.
 ---
 
@@ -87,7 +87,7 @@
 - name: '[{{ ecr_repository_name }}] check if local platform is ARM'
   # NOTE-zw: here we apply a workaround to cope with the different behavior of POSIX systems on ARM at Apple M1/M2 chipset
   # Running directly at the macOS terminal `uname -m` gives `arm64`, but at the same terminal, the following command
-  # retuens `aarch64` as it should be:
+  # returns `aarch64` as it should be:
   #     docker run -it --rm --entrypoint sh ubuntu:22.04 -c "uname -m"
   when: r_arch.stdout == 'aarch64' or r_arch.stdout == 'arm64'
   set_fact:
