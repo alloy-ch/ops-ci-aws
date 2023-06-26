@@ -91,6 +91,7 @@
           --tag {{ docker_image_full_name_and_tag }} \
           --tag {{ docker_image_full_name_with_latest_tag }} \
           --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }} \
+          --provenance=false \
           {% if adhoc_deploy %}--iidfile {{ code_path }}/docker-image-id {% endif %} \
           {{ code_path }}
       no_log: '{{ ansible_verbosity < 3 }}'
