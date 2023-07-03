@@ -19,4 +19,4 @@
     stack_name: '{{ logzio_lambda_name }}'
     template: '{{ cloudformation_template }}'
     repo_tag_override: 'ops-ci-aws'
-    version_tag_override: 'v1.8.0'
+    version_tag_override: 'v1.9.0'
