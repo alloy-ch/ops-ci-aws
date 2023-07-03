@@ -26,4 +26,4 @@ default_log_group_retention_in_days: 3
 # The location of the official shipper lambda code by logz.io.
 # Check out https://github.com/logzio/logzio_aws_serverless/blob/master/python3/cloudwatch/sam-template.yaml for updates
 logzio_shipper_lambda_code_s3_bucket: 'logzio-aws-integrations-eu-central-1'
-logzio_shipper_lambda_code_s3_key: 'cloudwatch-auto-deployment/1.0.0/logzio-cloudwatch.zip'
+logzio_shipper_lambda_code_s3_key: 'cloudwatch-auto-deployment/1.1.1/logzio-cloudwatch.zip'
