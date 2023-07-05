@@ -17,7 +17,7 @@ echo "Packing release files"
 npm --no-progress --no-color --no-audit --no-fund pack --ignore-scripts --json > npm-pack-output.json
 echo "Pruning the extraneous packages"
 NODE_ENV=production npm --no-progress --no-color --no-audit --no-fund prune --omit=dev
-cho "Moving node_modules to the output folder"
+echo "Moving node_modules to the output folder"
 # BUGFIX-20230704: we cannot use `mv` here, because for mounted volumes, Rancher Desktop has a different symlink file
 # permission handling logic compared to Docker Desktop (due to the different underlying VMs).
 cp --recursive --no-preserve=ownership ./node_modules /output/
