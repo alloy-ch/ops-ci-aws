@@ -44,7 +44,13 @@
   block:
     - name: '[{{ ecr_repository_name }}] build the image'
       command: |
-        docker build --platform {{ local_platform }} --rm --tag {{ docker_image_full_name_and_tag }} {{ code_path }} --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }}
+        docker build \
+          --rm \
+          --platform {{ local_platform }} \
+          --tag {{ docker_image_full_name_and_tag }} \
+          --tag {{ docker_image_full_name_with_latest_tag }} \
+          --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }} \
+          {{ code_path }}
       no_log: '{{ ansible_verbosity < 3 }}'
     - name: '[{{ ecr_repository_name }}] push the image to ECR'
       shell: 'docker push {{ docker_image_full_name_and_tag }} > /dev/null'
