@@ -86,7 +86,7 @@
     - name: '[{{ ecr_repository_name }}] install emulators'
       when: r_buildx_rcplus.rc != 0
       shell: |
-        docker run --privileged --rm docker.rcplus.io/tonistiigi/binfmt:buildkit-master --install arm64,amd64
+        docker run --privileged --rm docker.rcplus.io/tonistiigi/binfmt --install arm64,amd64
     - name: '[{{ ecr_repository_name }}] build the image'
       shell: |
         docker buildx build \
