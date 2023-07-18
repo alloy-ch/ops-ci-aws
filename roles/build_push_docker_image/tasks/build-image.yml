@@ -16,7 +16,19 @@
 # SHA256 hash always points to an image for a specific platform.
 # As the solution to keep backwards compatibility, we introduce the following "output" logic:
 #
-#
+# 1. in case role parameter `adhoc_deploy` gets falsy, the Ansible variable `docker_image_full_name_and_tag` will be
+#    set to the image with version number as the tag. For example:
+#    `180132115366.dkr.ecr.eu-central-1.amazonaws.com/dev-alloy-vectorizer-grafana-metrics-update:1.1.2`
+# 2. if `adhoc_deploy` is truthy, and the platform determination logic decides to build a single-platform image, the
+#    Ansible variable `docker_image_full_name_and_tag_<arch>` (`<arch>` could normally be `arm64` or `amd64`) will be
+#    set to the image full name and tag, which could be used directly for
+#    `docker run --rm {{ docker_image_full_name_and_tag_arm64 }}`. For example:
+#    `180132115366.dkr.ecr.eu-central-1.amazonaws.com/dev-alloy-vectorizer-grafana-metrics-update@sha256:883f6f826487460252631dd383f15e90d815975f347f3445d0a258dbcc1e34a3`
+#    And `docker_image_full_name_and_tag` will be set exactly to the same value
+# 3. if `adhoc_deploy` is truthy, and the platform determination logic decides to build a multi-platform image, the
+#    Ansible variables `docker_image_full_name_and_tag_<arch>` (`<arch>` could normally be `arm64` or `amd64`) will be
+#    set to the image full name and tag for each platform, and `docker_image_full_name_and_tag` will be set to the same
+#    value as `docker_image_full_name_and_tag_arm64`
 ---
 
 - name: '[{{ ecr_repository_name }}] set image name and tag for the image to be built'
