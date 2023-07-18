@@ -7,7 +7,7 @@
 #       (case-insensitive string), the corresponding boolean value will be respected. Otherwise,
 #    2. if the repo has '/deploydest.yml' with `multi_arch` as `true` (case-insensitive string), the image will be
 #       multi-arch. Otherwise,
-#    3 the image be NOT be multi-arch
+#    3 the image will NOT be multi-arch
 # B. in case we don't build multi-arch image:
 #    1. if `target_platform` does not exist in '/deploydest.yml', the image will be built for `amd64`. Otherwise,
 #    2. if the repo has '/deploydest.yml' with `target_platform` as `arm64` (in correspondence to architecture

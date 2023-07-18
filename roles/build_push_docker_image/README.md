@@ -24,9 +24,10 @@ This Ansible role:
 
 ## Outputs
 
-| Ansible variable                 | Type | Description                                                                                                                      |
-|:---------------------------------|:-----|:---------------------------------------------------------------------------------------------------------------------------------|
-| `docker_image_full_name_and_tag` | str  | ECR-specific tag for the published Docker image. e.g. `965749599769.dkr.ecr.eu-west-1.amazonaws.com/dev-scmi-crawler-cli:0.3.8.` |
+| Ansible variable                        | Type | Description                                                                                                                                                                                                                                                                                                                        |
+|:----------------------------------------|:-----|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `docker_image_full_name_and_tag`        | str  | ECR-specific tag for the published Docker image. e.g. `965749599769.dkr.ecr.eu-west-1.amazonaws.com/dev-scmi-crawler-cli:0.3.8.`                                                                                                                                                                                                   |
+| `docker_image_full_name_and_tag_<arch>` | str  | In case `adhoc_deploy` is truthy, these variables will be set to the SHA256 hash of the specific architecture. e.g. `docker_image_full_name_and_tag_arm64` = `180132115366.dkr.ecr.eu-central-1.amazonaws.com/dev-alloy-vectorizer-grafana-metrics-update@sha256:6d2b97ccacb063b2cf098a4c1932d5112d8742d6eb04aa5e26f7ce2c1b9e2078` |
 
 ## Examples
 

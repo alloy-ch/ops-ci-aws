@@ -18,14 +18,11 @@ Resources:
           {
             "rules": [{
               "rulePriority": 10,
-              "description": "Keep only 15 most recent snapshot images",
+              "description": "Keep only 15 most recent tagged images",
               "selection": {
                 "tagStatus": "tagged",
                 "countType": "imageCountMoreThan",
-                "countNumber": 15,
-                "tagPrefixList": [
-                  "snapshot-"
-                ]
+                "countNumber": 15
               },
               "action": {
                 "type": "expire"
