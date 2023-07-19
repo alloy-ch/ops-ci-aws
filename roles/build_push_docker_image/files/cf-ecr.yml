@@ -11,36 +11,63 @@ Resources:
     Properties:
       RepositoryName: '{{ ecr_repository_name }}'
       LifecyclePolicy:
-        # NOTE-zw: the lovely AWS makes inconsistency between such a short distance. Here the `LifecyclePolicyText`
+        # NOTE-zw:
+        # (I) the lovely AWS makes inconsistency between such a short distance. Here the `LifecyclePolicyText`
         # is literally a text (of type String), while several lines down there, the `RepositoryPolicyText` is a
         # JsonObject, therefore we could use the YAML representation...
+        # (II) we do not need to keep all tagged images forever, but to specify the amount of tagged images to keep,
+        # we have to set `tagStatus` to `tagged`. This makes another property `tagPrefixList` mandatory. And the
+        # `tagPrefixList` does not accept wildcard or empty value...the policies are applied sequentially one by one
+        # and no way to combine them with logical expression. So our workaround is to make the policies for the
+        # logic (order by priority, policy with smaller number will be applied earlier):
+        #   1. delete all untagged images older than 7 days
+        #   2. keep only 10 fresh but untagged images
+        #   3. for all images (irrelevant from the tagging status), we keep only 20 in total
+        # Therefore, at anytime, we may have 0~10 untagged images, and 0~20 tagged images. A gaussian random simulation
+        # of 10E4 times, 69% cases we ended up at 11 tagged images.
+        # (III) at AWS, a junior secondary receptionist summer internship trainee is allowed to develop features and
+        # ship to production without code review
         LifecyclePolicyText: |
           {
-            "rules": [{
-              "rulePriority": 10,
-              "description": "Keep only 15 most recent tagged images",
-              "selection": {
-                "tagStatus": "tagged",
-                "countType": "imageCountMoreThan",
-                "countNumber": 15
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Expire old untagged images after one week",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countNumber": 7,
+                  "countUnit": "days"
+                },
+                "action": {
+                  "type": "expire"
+                }
               },
-              "action": {
-                "type": "expire"
-              }
-            },
-            {
-              "rulePriority": 100,
-              "description": "Expire old untagged images after one week",
-              "selection": {
-                "tagStatus": "untagged",
-                "countType": "sinceImagePushed",
-                "countNumber": 7,
-                "countUnit": "days"
+              {
+                "rulePriority": 2,
+                "description": "Keep only 10 most recent untagged images",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": {
+                  "type": "expire"
+                }
               },
-              "action": {
-                "type": "expire"
+              {
+                "rulePriority": 50,
+                "description": "Keep only 20 images in total",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 20
+                },
+                "action": {
+                  "type": "expire"
+                }
               }
-            }]
+            ]
           }
 #{% if share_with_org_unit is defined and share_with_org_unit != '' %}
 #
