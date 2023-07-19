@@ -122,21 +122,21 @@
       block:
         - name: '[{{ ecr_repository_name }}](single-platform) extract the hash'
           set_fact:
-            docker_image_full_name_with_latest_tag_{{ manifest.Descriptor.platform.architecture }}: '{{ ecr_registry_uri }}@{{ manifest.Descriptor.digest }}'
-        - name: '[{{ ecr_repository_name }}](single-platform) reset docker_image_full_name_with_latest_tag'
+            docker_image_full_name_and_tag_{{ manifest.Descriptor.platform.architecture }}: '{{ ecr_registry_uri }}@{{ manifest.Descriptor.digest }}'
+        - name: '[{{ ecr_repository_name }}](single-platform) reset docker_image_full_name_and_tag'
           set_fact:
-            docker_image_full_name_with_latest_tag: '{{ vars["docker_image_full_name_with_latest_tag_" + manifest.Descriptor.platform.architecture] }}'
+            docker_image_full_name_and_tag: '{{ vars["docker_image_full_name_and_tag_" + manifest.Descriptor.platform.architecture] }}'
     - name: '[{{ ecr_repository_name }}] extract hash for multi-platform image'
       when: manifest.Descriptor is not defined
       block:
         - name: '[{{ ecr_repository_name }}](multi-platform) extract the hash of each image'
           set_fact:
-            docker_image_full_name_with_latest_tag_{{ item.Descriptor.platform.architecture }}: '{{ ecr_registry_uri }}@{{ item.Descriptor.digest }}'
+            docker_image_full_name_and_tag_{{ item.Descriptor.platform.architecture }}: '{{ ecr_registry_uri }}@{{ item.Descriptor.digest }}'
           with_items: '{{ manifest }}'
-        - name: '[{{ ecr_repository_name }}](multi-platform) reset docker_image_full_name_with_latest_tag'
-          # assumption: when we build multi-platform image, one of the platform is arm64 (as RC+ default)
+        - name: '[{{ ecr_repository_name }}](multi-platform) reset docker_image_full_name_and_tag'
+          # assumption: when we build multi-platform image, one of the platform is arm64 (as the RC+ default)
           set_fact:
-            docker_image_full_name_with_latest_tag: '{{ docker_image_full_name_with_latest_tag_arm64 }}'
+            docker_image_full_name_and_tag: '{{ docker_image_full_name_and_tag_arm64 }}'
     - debug:
-        msg: 'docker_image_full_name_with_latest_tag = "{{ docker_image_full_name_with_latest_tag }}"'
+        msg: 'docker_image_full_name_and_tag = "{{ docker_image_full_name_and_tag }}"'
       no_log: false
