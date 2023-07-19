@@ -18,13 +18,13 @@ Resources:
         # (II) we do not need to keep all tagged images forever, but to specify the amount of tagged images to keep,
         # we have to set `tagStatus` to `tagged`. This makes another property `tagPrefixList` mandatory. And the
         # `tagPrefixList` does not accept wildcard or empty value...the policies are applied sequentially one by one
-        # and no way to combine them with logical expression. So our workaround is to make the policies for the
+        # and no way to combine them with logical expression...even weird, tagStatus==untagged can only be used once.
+        # So our workaround is to make the policies for the
         # logic (order by priority, policy with smaller number will be applied earlier):
-        #   1. delete all untagged images older than 7 days
-        #   2. keep only 10 fresh but untagged images
-        #   3. for all images (irrelevant from the tagging status), we keep only 20 in total
+        #   1. keep only 10 fresh but untagged images
+        #   2. for all images (irrelevant from the tagging status), we keep only 20 in total
         # Therefore, at anytime, we may have 0~10 untagged images, and 0~20 tagged images. A gaussian random simulation
-        # of 10E4 times, 69% cases we ended up at 11 tagged images.
+        # of 10E4 times, 92% cases we ended up at 10:10 untagged:tagged images.
         # (III) at AWS, a junior secondary receptionist summer internship trainee is allowed to develop features and
         # ship to production without code review
         LifecyclePolicyText: |
@@ -32,19 +32,6 @@ Resources:
             "rules": [
               {
                 "rulePriority": 1,
-                "description": "Expire old untagged images after one week",
-                "selection": {
-                  "tagStatus": "untagged",
-                  "countType": "sinceImagePushed",
-                  "countNumber": 7,
-                  "countUnit": "days"
-                },
-                "action": {
-                  "type": "expire"
-                }
-              },
-              {
-                "rulePriority": 2,
                 "description": "Keep only 10 most recent untagged images",
                 "selection": {
                   "tagStatus": "untagged",
