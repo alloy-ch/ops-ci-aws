@@ -10,7 +10,6 @@ This Ansible role:
 
 | Param               | Mandatory |  Type   | Default | Description                                                                                                           |
 |:--------------------|:---------:|:-------:|:--------|:----------------------------------------------------------------------------------------------------------------------|
-| `python3_workspace` |    No     | boolean | `false` | When truthy, a Python3 virtualenv will be initialized inside `workspace_path`                                         |
 | `use_eks`           |    No     | boolean | `false` | When truthy, adds a functioning context into local kubectl config for the EKS if the current environment is not `ops` |
 
 ## Outputs

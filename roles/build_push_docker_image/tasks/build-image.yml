@@ -1,3 +1,34 @@
+# In case the prebuild-image is not supplied, the tasks in this file will be used to build the Docker image using the
+# specified Dockerfile.
+#
+# NOTE-zw: at the very beginning, we supported only single-platform image and tagged the image with
+# {{ project_version }} and `latest`. It implied a workflow, that for each change, we need to bump up the version so
+# that ECS or EKS would pull the updated image. To accelerate the development, role parameter `adhoc_deploy` was
+# introduced. It changes the "output" variable value of this role from '{{ ecr_registry_uri }}:{{ project_version }}'
+# to '{{ ecr_registry_uri }}@sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'. The SHA256 is
+# hash of the recently built image. So that whenever the image changes, the subsequent ECS task or EKS pod provisioning
+# task can always pick up the fresh image.
+# It has been working well for several years until we introduced the multi-platform build. In some edge cases, that the
+# determination logic decides to build a single-platform image but the build platform differs from the target platform,
+# the SHA256 would point to the manifest instead of the image. Then the error "CannotPullContainerError: pull image
+# manifest has been retried 5 time(s): unknown media type" came out. It is not difficult to fix this issue, but by the
+# nature of the design, we cannot easily use one output variable to hold the hashes for multi-platform image, as one
+# SHA256 hash always points to an image for a specific platform.
+# As the solution to keep backwards compatibility, we introduce the following "output" logic:
+#
+# 1. in case role parameter `adhoc_deploy` gets falsy, the Ansible variable `docker_image_full_name_and_tag` will be
+#    set to the image with version number as the tag. For example:
+#    `180132115366.dkr.ecr.eu-central-1.amazonaws.com/dev-alloy-vectorizer-grafana-metrics-update:1.1.2`
+# 2. if `adhoc_deploy` is truthy, and the platform determination logic decides to build a single-platform image, the
+#    Ansible variable `docker_image_full_name_and_tag_<arch>` (`<arch>` could normally be `arm64` or `amd64`) will be
+#    set to the image full name and tag, which could be used directly for
+#    `docker run --rm {{ docker_image_full_name_and_tag_arm64 }}`. For example:
+#    `180132115366.dkr.ecr.eu-central-1.amazonaws.com/dev-alloy-vectorizer-grafana-metrics-update@sha256:883f6f826487460252631dd383f15e90d815975f347f3445d0a258dbcc1e34a3`
+#    And `docker_image_full_name_and_tag` will be set exactly to the same value
+# 3. if `adhoc_deploy` is truthy, and the platform determination logic decides to build a multi-platform image, the
+#    Ansible variables `docker_image_full_name_and_tag_<arch>` (`<arch>` could normally be `arm64` or `amd64`) will be
+#    set to the image full name and tag for each platform, and `docker_image_full_name_and_tag` will be set to the same
+#    value as `docker_image_full_name_and_tag_arm64`
 ---
 
 - name: '[{{ ecr_repository_name }}] set image name and tag for the image to be built'
@@ -39,77 +70,73 @@
 - name: '[{{ ecr_repository_name }}] check Docker environment'
   command: docker version
 
-- name: 'do not use BuildKit if possible'
-  when: buildx_platform_param == local_platform
-  block:
-    - name: '[{{ ecr_repository_name }}] build the image'
-      command: |
-        docker build \
-          --rm \
-          --platform {{ local_platform }} \
-          --tag {{ docker_image_full_name_and_tag }} \
-          --tag {{ docker_image_full_name_with_latest_tag }} \
-          --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }} \
-          {{ code_path }}
-      no_log: '{{ ansible_verbosity < 3 }}'
-    - name: '[{{ ecr_repository_name }}] push the image to ECR'
-      shell: 'docker push {{ docker_image_full_name_and_tag }} > /dev/null'
-    - name: '[{{ ecr_repository_name }}] tag the local image without scope'
-      command: 'docker tag {{ docker_image_full_name_and_tag}} {{ docker_image_with_tag }}'
-      no_log: '{{ ansible_verbosity < 3 }}'
-    - name: '[{{ ecr_repository_name }}] ad-hoc deployment: get the image repo digest'
-      when: adhoc_deploy
-      shell: docker inspect {{ docker_image_full_name_and_tag }} | jq -crM '.[0].RepoDigests[] | select(startswith("{{ ecr_registry_uri }}"))'
-      register: docker_inspect
-    - name: '[{{ ecr_repository_name }}] ad-hoc deployment: use the image repo digest as the docker image'
-      when: adhoc_deploy
-      set_fact:
-        docker_image_full_name_and_tag: '{{ docker_inspect.stdout }}'
+- name: '[{{ ecr_repository_name }}] check Docker BuildKit'
+  command: docker buildx version
 
-- name: 'use BuildKit if needed'
-  when: buildx_platform_param != local_platform
+- name: '[{{ ecr_repository_name }}] inspect our image builder'
+  command: docker buildx inspect rcplus
+  no_log: true
+  ignore_errors: true
+  register: r_buildx_rcplus
+
+- name: '[{{ ecr_repository_name }}] use the builder if available'
+  when: r_buildx_rcplus.rc == 0
+  command: docker buildx use rcplus
+
+- name: '[{{ ecr_repository_name }}] initialize the builder if needed'
+  when: r_buildx_rcplus.rc != 0
+  shell: |
+    docker buildx create --bootstrap --name rcplus --driver docker-container --platform linux/amd64,linux/arm64 --use --buildkitd-flags '--allow-insecure-entitlement security.insecure'
+
+- name: '[{{ ecr_repository_name }}] install emulators'
+  when: r_buildx_rcplus.rc != 0 and buildx_platform_param != local_platform
+  shell: |
+    docker run --privileged --rm docker.rcplus.io/tonistiigi/binfmt --install arm64,amd64
+
+- name: '[{{ ecr_repository_name }}] build the image'
+  shell: |
+    docker buildx build \
+      --allow security.insecure \
+      --push \
+      --platform {{ buildx_platform_param }} \
+      --builder rcplus {{ extra_buildx_build_args }} \
+      --tag {{ docker_image_full_name_and_tag }} \
+      --tag {{ docker_image_full_name_with_latest_tag }} \
+      --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }} \
+      --provenance=false \
+      {{ code_path }}
+  no_log: '{{ ansible_verbosity < 3 }}'
+
+- name: '[{{ ecr_repository_name }}] modify the output in case of adhoc_deploy'
+  when: adhoc_deploy
+  no_log: '{{ ansible_verbosity < 3 }}'
   block:
-    - name: '[{{ ecr_repository_name }}] check Docker BuildKit'
-      command: docker buildx version
-    - name: '[{{ ecr_repository_name }}] inspect our image builder'
-      command: docker buildx inspect rcplus
-      no_log: true
-      ignore_errors: true
-      register: r_buildx_rcplus
-    - name: '[{{ ecr_repository_name }}] use the builder if available'
-      when: r_buildx_rcplus.rc == 0
-      command: docker buildx use rcplus
-    - name: '[{{ ecr_repository_name }}] initialize the builder if needed'
-      when: r_buildx_rcplus.rc != 0
-      shell: |
-        docker buildx create --bootstrap --name rcplus --driver docker-container --platform linux/amd64,linux/arm64 --use --buildkitd-flags '--allow-insecure-entitlement security.insecure'
-    - name: '[{{ ecr_repository_name }}] install emulators'
-      when: r_buildx_rcplus.rc != 0
-      shell: |
-        docker run --privileged --rm public.ecr.aws/eks-distro-build-tooling/binfmt-misc:qemu-v7.0.0 --install arm64,amd64
-    - name: '[{{ ecr_repository_name }}] build the image'
-      shell: |
-        docker buildx build \
-          --allow security.insecure \
-          --push \
-          --platform {{ buildx_platform_param }} \
-          --builder rcplus {{ extra_buildx_build_args }} \
-          --tag {{ docker_image_full_name_and_tag }} \
-          --tag {{ docker_image_full_name_with_latest_tag }} \
-          --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }} \
-          --provenance=false \
-          {% if adhoc_deploy %}--iidfile {{ code_path }}/docker-image-id {% endif %} \
-          {{ code_path }}
-      no_log: '{{ ansible_verbosity < 3 }}'
-    - when: adhoc_deploy
+    - name: '[{{ ecr_repository_name }}] inspect the manifest'
+      shell: docker manifest inspect --verbose {{ docker_image_full_name_with_latest_tag }}
+      register: r_manifest
+    - name: '[{{ ecr_repository_name }}] parse the inspection result'
+      set_fact:
+        manifest: '{{ r_manifest.stdout | from_json }}'
+    - name: '[{{ ecr_repository_name }}] extract hash for single-platform image'
+      when: manifest.Descriptor is defined
       block:
-        - name: '[{{ ecr_repository_name }}] ad-hoc deployment: fetch the image id'
-          shell: cat {{ code_path }}/docker-image-id
-          register: r_buildx_build
-        - name: '[{{ ecr_repository_name }}] ad-hoc deployment: use the image repo digest as the docker image'
+        - name: '[{{ ecr_repository_name }}](single-platform) extract the hash'
           set_fact:
-            docker_image_full_name_and_tag: '{{ ecr_registry_uri }}@{{ r_buildx_build.stdout }}'
-        - name: '[{{ ecr_repository_name }}] ad-hoc deployment: drop the image id file'
-          file:
-            path: '{{ code_path }}/docker-image-id'
-            state: absent
+            docker_image_full_name_and_tag_{{ manifest.Descriptor.platform.architecture }}: '{{ ecr_registry_uri }}@{{ manifest.Descriptor.digest }}'
+        - name: '[{{ ecr_repository_name }}](single-platform) reset docker_image_full_name_and_tag'
+          set_fact:
+            docker_image_full_name_and_tag: '{{ vars["docker_image_full_name_and_tag_" + manifest.Descriptor.platform.architecture] }}'
+    - name: '[{{ ecr_repository_name }}] extract hash for multi-platform image'
+      when: manifest.Descriptor is not defined
+      block:
+        - name: '[{{ ecr_repository_name }}](multi-platform) extract the hash of each image'
+          set_fact:
+            docker_image_full_name_and_tag_{{ item.Descriptor.platform.architecture }}: '{{ ecr_registry_uri }}@{{ item.Descriptor.digest }}'
+          with_items: '{{ manifest }}'
+        - name: '[{{ ecr_repository_name }}](multi-platform) reset docker_image_full_name_and_tag'
+          # assumption: when we build multi-platform image, one of the platform is arm64 (as the RC+ default)
+          set_fact:
+            docker_image_full_name_and_tag: '{{ docker_image_full_name_and_tag_arm64 }}'
+    - debug:
+        msg: 'docker_image_full_name_and_tag = "{{ docker_image_full_name_and_tag }}"'
+      no_log: false
