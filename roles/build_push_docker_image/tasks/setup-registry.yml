@@ -32,3 +32,8 @@
 - name: '[{{ ecr_repository_name }}] login to ECR'
   command: 'docker login --username AWS --password {{ r_ecr_password.stdout }} {{ ecr_registry_uri }}'
   no_log: '{{ ansible_verbosity < 3 }}'
+
+- name: '[{{ ecr_repository_name }}] login to rcplus Nexus'
+  # the authentication is in-place to prevent the registry from being accessed publicly.
+  command: 'docker login --username alloy-cicd --password ringier-alloy https://docker.rcplus.io/'
+  no_log: '{{ ansible_verbosity < 3 }}'

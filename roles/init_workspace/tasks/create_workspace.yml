@@ -9,14 +9,6 @@
 - set_fact:
     workspace_path: '{{ r_workspace.path }}'
 
-- name: 'initialize virtualenv and update pip'
-  pip:
-    extra_args: '-U'
-    name: 'pip'
-    virtualenv: '{{ workspace_path }}/venv'
-    virtualenv_python: 'python3'
-  when: python3_workspace | default(false) | bool
-
 - name: 'eks-specific setup'
   when: use_eks | default(false) | bool
   block:
