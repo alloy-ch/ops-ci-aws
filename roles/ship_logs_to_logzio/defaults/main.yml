@@ -14,11 +14,7 @@ logzio_type: 'logzio_cloudwatch_lambda'
 # the Lambda will send uncompressed logs.
 logzio_compress: 'true'
 
-# Send all messages to logz.io, can be "true" or "false" (string). If false, we do not send logs of type START, END, REPORT.
-# Choose true to send all log types.
-logzio_send_all: 'false'
-
-logzio_token_ssm_parameter_name: ''
+ssmkey_logzio_token: ''
 
 # Will only be used to create log group that does not exist
 default_log_group_retention_in_days: 3

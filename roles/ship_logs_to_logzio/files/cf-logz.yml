@@ -85,8 +85,7 @@ Resources:
           TYPE: '{{ logzio_type }}'
           FORMAT: '{{ logzio_format }}'
           COMPRESS: '{{ logzio_compress }}'
-          ENRICH: 'env={{ env }}'
-          SENDALL: '{{ logzio_send_all }}'
+          ENRICH: 'env={{ env }};version={{ project_version }};repository={{ git_info.repo_name }};software_component={{ software_component }}'
       Tags:
         - { Key: 'Name', Value: '{{ logzio_lambda_name }}' }
         - { Key: 'Project', Value: '{{ project_id }}' }
