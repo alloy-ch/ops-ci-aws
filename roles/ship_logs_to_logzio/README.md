@@ -13,9 +13,8 @@ This Ansible role:
 | `logzio_format`                       |    No     | str  | `json`                     | Log message format, can be "json" or "text". If json, the lambda function will attempt to parse the message field as JSON and populate the event data with the parsed fields |
 | `logzio_type`                         |    No     | str  | `logzio_cloudwatch_lambda` | Log message type. Valid value can be found at https://docs.logz.io/user-guide/log-shipping/built-in-log-types.html                                                           |
 | `logzio_compress`                     |    No     | str  | `true`                     | Compress data before sending to logz.io, can be "true" or "false" (string)                                                                                                   |
-| `logzio_send_all`                     |    No     | str  | `false`                    | Send all messages to logz.io, can be "true" or "false" (string). If false, we do not send logs of type START, END, REPORT                                                    |
 | `default_log_group_retention_in_days` |    No     | int  | 3                          | The LogGroup will be created if the it does not exist. In this case, set the log retention to this value                                                                     |
-| `logzio_token_ssm_parameter_name`     |    Yes    | str  | -                          | Name of the SSM Parameter stores the logz.io token, must be of type `SecureString`                                                                                           |
+| `ssmkey_logzio_token`                 |    Yes    | str  | -                          | Name of the SSM Parameter stores the logz.io token, must be of type `SecureString`                                                                                           |
 | `logzio_log_group_to_monitor`         |    Yes    | str  | -                          | Name of the LogGroup to send logs to logz.io                                                                                                                                 |
 
 ## Outputs
@@ -29,15 +28,6 @@ None
 - include_role:
     name: 'ringier.aws_cicd.ship_logs_to_logzio'
   vars:
-    logzio_token_ssm_parameter_name: '/alloy/devops/logzio-logs-shipping-token'
+    ssmkey_logzio_token: '/alloy/devops/logzio-logs-shipping-token'
     logzio_log_group_to_monitor: '/aws/lambda/land-alloy-content-profiles-data-ingestion'
-
-- name: 'send ECS logs to logz.io'
-- include_role:
-    name: 'ringier.aws_cicd.ship_logs_to_logzio'
-  vars:
-    logzio_token_ssm_parameter_name: '/alloy/devops/logzio-logs-shipping-token'
-    logzio_log_group_to_monitor: '/land/alloy/1plusx-rawdata-ingestion'
-    logzio_type: 'text'
-    logzio_send_all: 'true'
 ```

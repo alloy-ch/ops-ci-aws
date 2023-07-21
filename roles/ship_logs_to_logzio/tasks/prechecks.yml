@@ -26,19 +26,14 @@
   fail:
     msg: "mandatory 'logzio_compress' has a wrong value"
 
-- name: "[logzio-prechecks] check if we have a valid 'logzio_send_all'"
-  when: logzio_send_all != 'true' and logzio_send_all != 'false'
+- name: "[logzio-prechecks] check if we have a valid 'ssmkey_logzio_token'"
+  when: ssmkey_logzio_token == ''
   fail:
-    msg: "mandatory 'logzio_send_all' has a wrong value"
-
-- name: "[logzio-prechecks] check if we have a valid 'logzio_token_ssm_parameter_name'"
-  when: logzio_token_ssm_parameter_name == ''
-  fail:
-    msg: "mandatory 'logzio_token_ssm_parameter_name' has a wrong value"
+    msg: "mandatory 'ssmkey_logzio_token' has a wrong value"
 
 - name: '[logzio-prechecks] decrypt the logz.io token'
   command: |
-    aws --region {{ aws_region }} ssm get-parameter --output json --name {{ logzio_token_ssm_parameter_name }} --with-decryption
+    aws --region {{ aws_region }} ssm get-parameter --output json --name {{ ssmkey_logzio_token }} --with-decryption
   register: r_get_param
 
 - name: '[logzio-prechecks] parse the result'
@@ -48,7 +43,7 @@
 - name: '[logzio-prechecks] check the parameter type'
   when: ssm_param.Parameter.Type != 'SecureString'
   fail:
-    msg: '{{ logzio_token_ssm_parameter_name }} is not encrypted as it should be'
+    msg: '{{ ssmkey_logzio_token }} is not encrypted as it should be'
 
 - name: '[logzio-prechecks] save the token'
   set_fact:

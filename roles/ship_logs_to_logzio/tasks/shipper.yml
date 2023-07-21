@@ -6,7 +6,7 @@
 - name: '[logzio-shipper] assemble the lambda function bane'
   set_fact:
     # this is complex name: for different log type we need different lambda function, so does the different data shipping token, therefore we put these variables in the name
-    logzio_lambda_name: "{{ env }}-{{ project_id }}-logzio-{{ logzio_format }}-{{ logzio_type_kebab_case }}-{{ logzio_token_ssm_parameter_name | hash('md5') | truncate(8, True, '') }}"
+    logzio_lambda_name: "{{ env }}-{{ project_id }}-logzio-{{ logzio_format }}-{{ logzio_type_kebab_case }}-{{ ssmkey_logzio_token | hash('md5') | truncate(8, True, '') }}"
 
 - name: '[logzio-shipper] set cloudformation template'
   set_fact:
@@ -19,4 +19,4 @@
     stack_name: '{{ logzio_lambda_name }}'
     template: '{{ cloudformation_template }}'
     repo_tag_override: 'ops-ci-aws'
-    version_tag_override: 'v1.11.0'
+    version_tag_override: 'v1.11.1'
