@@ -1,0 +1,149 @@
+---
+
+- name: 'get the absolute path of source dir'
+  set_fact:
+    source_dir: '{{ (playbook_dir, "../app") | path_join | realpath }}'
+  when: source_path is not defined or source_path == ''
+
+- name: 'get default source dir if not specified'
+  set_fact:
+    source_dir: '{{ source_path | realpath }}'
+  when: source_path is defined and source_path != ''
+
+- name: 'check if pyproject.toml exists'
+  stat:
+    path: '{{ source_dir }}/pyproject.toml'
+  register: r_stat
+  changed_when: False
+  failed_when: not r_stat.stat.exists
+  no_log: true
+
+- name: 'check if poetry.lock exists'
+  stat:
+    path: '{{ source_dir }}/poetry.lock'
+  register: r_stat
+  changed_when: False
+  failed_when: not r_stat.stat.exists
+  no_log: true
+
+- name: 'check if the poetry runtime group is in pyproject.toml'
+  shell: >
+    cd "{{ source_dir }}"
+    poetry show --only runtime
+  register: r_poetry_show
+  changed_when: False
+  failed_when: r_poetry_show.rc != 0
+
+- name: 'is pyproject.toml up to date?'
+  when: lambda_layers_to_pin is defined and lambda_layers_to_pin | length > 0
+  block:
+    - name: 'update pyproject.toml'
+      args:
+        executable: '/bin/bash'
+      shell: |
+        set -e
+        update_non_pinned_deps={{ update_non_pinned_deps | lower }}
+        # create a temporary directory
+        tmpdir=$(mktemp -d)
+        cd "$tmpdir"
+        # gather lambda layers dependencies
+        layers={{ lambda_layers_to_pin | join(",") }}
+        for layer in ${layers//,/ }
+        do
+            URL=$(aws lambda get-layer-version-by-arn --arn "$layer" --query Content.Location --output text)
+            curl "$URL" -o layer.zip
+            # silent
+            unzip -o layer.zip > /dev/null
+            rm layer.zip
+        done
+        all_deps=$(pip list --format=freeze --path python --path python/lib/python3.10/site-packages --exclude wheel --exclude  pip --exclude setuptools --exclude distribute)
+        pinned_deps=$(echo "$all_deps" | grep "==")
+        non_pinned_deps=$(echo "$all_deps" | grep -v "==" | sed 's/@.*//')
+        # update pyproject.toml
+        cd "{{ source_dir }}"
+        if [ -n "$pinned_deps" ]; then
+          poetry remove $pinned_deps | sed 's/==.*//' || true
+        fi
+        if [ -n "$non_pinned_deps" ] && [ "$update_non_pinned_deps" = true ]; then
+          poetry remove $non_pinned_deps || true
+        fi
+        # add the layers packages to the from_lambda_layers group
+        if [ -n "$pinned_deps" ]; then
+            poetry add --group from_lambda_layers $pinned_deps
+        fi
+        if [ -n "$non_pinned_deps" ] && [ "$update_non_pinned_deps" = true ]; then
+            poetry add --group from_lambda_layers $non_pinned_deps
+        fi
+        # clean up
+        rm -rf "$tmpdir"
+    - name: 'fail if poetry.lock has changed in git'
+      shell: |
+        cd "{{ source_dir }}"
+        git diff --exit-code poetry.lock
+      register: r_git_diff
+      failed_when: r_git_diff.rc != 0
+      changed_when: False
+      no_log: true
+
+- name: 'gather Ansible facts'
+  # we need only the current time with millisecond precision, but Ansible does not offer an option to specify, we have to get all
+  gather_facts: {}
+
+- name: 'compute the output dir path'
+  set_fact:
+    output_dir: '{{ workspace_path }}/lambda_{{ ansible_date_time.iso8601_micro| hash("md5") }}'
+    intermediate_dir: '{{ workspace_path }}/lambda_{{ ansible_date_time.iso8601_micro| hash("md5") }}.tmp'
+
+- name: 'create the intermediate dir'
+  file:
+    path: '{{ intermediate_dir }}'
+    state: 'directory'
+  changed_when: False
+
+- name: 'delete the output dir to absolutely clear the content'
+  file:
+    path: '{{ output_dir }}'
+    state: 'absent'
+  changed_when: False
+
+- name: 'create the output dir'
+  file:
+    path: '{{ output_dir }}'
+    state: 'directory'
+  changed_when: False
+
+- name: 'prepare the source files for the container'
+  ansible.posix.synchronize:
+    src: '{{ source_dir }}/'
+    dest: '{{ intermediate_dir }}'
+    copy_links: yes
+    recursive: yes
+    delete: yes
+    rsync_opts:
+      - '--exclude=tests'
+      - '--exclude=__pycache__'
+      - '--exclude=.pytest_cache'
+      - '--exclude=.coverage'
+      - '--exclude=coverage'
+      - '--exclude=dist'
+      - '--exclude=.venv'
+      - '--exclude=venv'
+  no_log: '{{ ansible_verbosity < 3 }}'
+
+- name: 'place the shell script to be executed inside the container'
+  copy:
+    src: '{{ role_path }}/files/docker_build_python.sh'
+    dest: '{{ intermediate_dir }}/docker_build_python.sh'
+    mode: 0755
+
+- name: 'build the app inside lambda runtime container'
+  command: >
+    docker run --rm
+      -v "{{ output_dir }}:/output"
+      -v "{{ intermediate_dir }}:/workspace"
+      --entrypoint "/workspace/docker_build_python.sh"
+      {{ lambda_runtime_docker_image_python }}
+
+- name: 'set output'
+  set_fact:
+    lambda_code_path: '{{ output_dir }}'
