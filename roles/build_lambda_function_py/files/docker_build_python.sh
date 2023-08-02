@@ -30,6 +30,4 @@ for package in ${packages//,/ }
 do
     cp --recursive --no-preserve=ownership ${package} /output/
 done
-rm -rf ./venv
-pip  --quiet --disable-pip-version-check --no-color uninstall --yes poetry
 echo "all done!"
