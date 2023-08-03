@@ -26,11 +26,11 @@ boto3 = "1.26.90"
 botocore = "1.29.90"
 ```
 
-In case `lambda_layers_to_pin` is not empty this role will check if the `pyproject.toml` file is up to date, by
+In case `lambda_layers_to_pin` is not empty this role will check if the `pyproject.toml` file is up-to-date, by
 trying to install the dependencies from the layers into the group `from_lambda_layers` and comparing the resulted
 `poetry.lock` file with the git tracked one.
 
-In order to keep the dependencies installed in the lambda function minimal the following groups will be always ignored:
+In order to keep the dependencies installed in the lambda function minimal the following groups will always be ignored:
 - `[tool.poetry.group.runtime.dependencies]`
 - `[tool.poetry.group.from_lambda_layers.dependencies]`
 - `[tool.poetry.group.dev.dependencies]`
@@ -43,7 +43,7 @@ In order to keep the dependencies installed in the lambda function minimal the f
 |:-------------------------------------|:---------:|:----:|:------------------------------|:----------------------------------------------------------------------------------|
 | `source_path`                        |    No     | str   | `{{ playbook_dir }}/../app`         | Dir of the TypeScript app, where the corresponding`package.json` is located.    |
 | `lambda_runtime_docker_image_python` |    No     | str   | `public.ecr.aws/lambda/python:3.10` | Docker image to use for the build. Refer to [the definition](./defaults/main.yml) |
-| `lambda_layers_to_pin`               |    No     | array | `[]`                                | Lambda layers that will be used in order to check wether the pyproject.yml file is up to date |
+| `lambda_layers_to_pin`               |    No     | array | `[]`                                | Lambda layers that will be used in order to check whether the pyproject.yml file is up-to-date |
 | `update_non_pinned_deps`             |    No     | bool  | `true`                                | Whether the dependencies from the lambda layers for those it is not possible to resolve a version should be added/updated by the role |
 
 ## Outputs

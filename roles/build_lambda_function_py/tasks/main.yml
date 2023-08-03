@@ -34,7 +34,7 @@
   changed_when: False
   failed_when: r_poetry_show.rc != 0
 
-- name: 'is pyproject.toml up to date?'
+- name: 'is pyproject.toml up-to-date?'
   when: lambda_layers_to_pin is defined and lambda_layers_to_pin | length > 0
   block:
     - name: 'update pyproject.toml'
