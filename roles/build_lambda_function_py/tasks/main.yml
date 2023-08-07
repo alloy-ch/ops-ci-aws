@@ -137,6 +137,10 @@
     dest: '{{ intermediate_dir }}/docker_build_python.sh'
     mode: 0755
 
+- name: 'pull the docker image for lambda runtime'
+  command: >
+    docker pull {{ lambda_runtime_docker_image_python }}
+
 - name: 'build the app inside lambda runtime container'
   command: >
     docker run --rm
