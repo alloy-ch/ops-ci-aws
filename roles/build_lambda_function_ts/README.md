@@ -1,4 +1,4 @@
-# Ansible Role: `build_lambda_function`
+# Ansible Role: `build_lambda_function_ts`
 
 This Ansible role makes a TypeScript app ready for Lambda function.
 
@@ -26,7 +26,7 @@ binary architecture.
 ```ansible
 - name: 'build the TypeScript application at ./app for Lambda'
 - include_role:
-    name: 'ringier.aws_cicd.build_lambda_function'
+    name: 'ringier.aws_cicd.build_lambda_function_ts'
 
 - name: 'show result'
   debug:
@@ -36,7 +36,7 @@ binary architecture.
 
 - name: 'build the TypeScript application at ./app/component1/function2 for Lambda'
   include_role:
-    name: 'ringier.aws_cicd.build_lambda_function'
+    name: 'ringier.aws_cicd.build_lambda_function_ts'
   vars:
     source_path: '../app/component1/function2'
 
