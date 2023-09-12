@@ -6,8 +6,8 @@ cd /var/runtime
 # check that boto3 and botocore in pyproject.toml is the same as in the lambda runtime
 runtime_boto3_version=$(python -c "import boto3;print(boto3.__version__)")
 runtime_botocore_version=$(python -c "import botocore;print(botocore.__version__)")
-pyproject_boto3_version=$(cat /workspace/pyproject.toml | grep boto3 | cut -d'=' -f2 | tr -d ' ' | tr -d '"')
-pyproject_botocore_version=$(cat /workspace/pyproject.toml | grep botocore | cut -d'=' -f2 | tr -d ' ' | tr -d '"')
+pyproject_boto3_version=$(cat /workspace/pyproject.toml | grep '^boto3 ' | cut -d'=' -f2 | tr -d ' ' | tr -d '"')
+pyproject_botocore_version=$(cat /workspace/pyproject.toml | grep '^botocore ' | cut -d'=' -f2 | tr -d ' ' | tr -d '"')
 
 if [ "$runtime_boto3_version" != "$pyproject_boto3_version" ] || [ "$runtime_botocore_version" != "$pyproject_botocore_version" ]; then
     echo "boto3 and botocore versions in pyproject.toml and lambda runtime are not the same"
