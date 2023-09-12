@@ -92,7 +92,7 @@
             non_pinned_deps_array+=("$line")
           done <<< "$non_pinned_deps"
         fi
-        poetry add --group from_lambda_layers $pinned_deps_array $non_pinned_deps_array
+        poetry add --lock --group from_lambda_layers $pinned_deps_array $non_pinned_deps_array
         # clean up
         rm -rf "$tmpdir"
     - name: 'fail if poetry.lock has changed in git (allow just comments to change)'
@@ -102,7 +102,7 @@
       register: r_git_diff
       failed_when: r_git_diff.rc != 0
       changed_when: False
-      no_log: true
+      no_log: false
 
 - name: 'gather Ansible facts'
   # we need only the current time with millisecond precision, but Ansible does not offer an option to specify, we have to get all
