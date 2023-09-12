@@ -61,25 +61,34 @@
         non_pinned_deps=$(echo "$all_deps" | grep -v "==" | sed 's/@.*//')
         # update pyproject.toml
         cd "{{ source_dir }}"
+        # get all dependencies from pyproject.toml
+        poetry_deps=$(poetry show | sed 's/ .*//')
+        pinned_deps_array=()
         if [ -n "$pinned_deps" ]; then
-          poetry remove $pinned_deps | sed 's/==.*//' || true
+          # intersect pinned_deps and poetry_deps
+          pinned_deps_wo_version=$(echo "$pinned_deps" | sed 's/==.*//')
+          pinned_deps_to_remove=$(comm -12 <(echo "$pinned_deps_wo_version" | sort) <(echo "$poetry_deps" | sort))
+          # to array
+          IFS=$'\n' read -rd '' -A pinned_deps_to_remove_array <<<"$pinned_deps_to_remove"
+          poetry remove --lock $pinned_deps_to_remove_array || true
+          IFS=$'\n' read -rd '' -A pinned_deps_array <<<"$pinned_deps"
         fi
+        non_pinned_deps_array=()
         if [ -n "$non_pinned_deps" ] && [ "$update_non_pinned_deps" = true ]; then
-          poetry remove $non_pinned_deps || true
+          # intersect non_pinned_deps and poetry_deps
+          non_pinned_deps_to_remove=$(comm -12 <(echo "$non_pinned_deps" | sort) <(echo "$poetry_deps" | sort))
+          # to array
+          IFS=$'\n' read -rd '' -A non_pinned_deps_to_remove_array <<<"$non_pinned_deps_to_remove"
+          poetry remove --lock $non_pinned_deps_to_remove_array || true
+          IFS=$'\n' read -rd '' -A non_pinned_deps_array <<<"$non_pinned_deps"
         fi
-        # add the layers packages to the from_lambda_layers group
-        if [ -n "$pinned_deps" ]; then
-            poetry add --group from_lambda_layers $pinned_deps
-        fi
-        if [ -n "$non_pinned_deps" ] && [ "$update_non_pinned_deps" = true ]; then
-            poetry add --group from_lambda_layers $non_pinned_deps
-        fi
+        poetry add --group from_lambda_layers $pinned_deps_array $non_pinned_deps_array
         # clean up
         rm -rf "$tmpdir"
-    - name: 'fail if poetry.lock has changed in git'
+    - name: 'fail if poetry.lock has changed in git (allow just comments to change)'
       shell: |
         cd "{{ source_dir }}"
-        git diff --exit-code poetry.lock
+        git diff --exit-code -G'^[^#]' poetry.lock
       register: r_git_diff
       failed_when: r_git_diff.rc != 0
       changed_when: False
