@@ -37,72 +37,20 @@
 - name: 'is pyproject.toml up-to-date?'
   when: lambda_layers_to_pin is defined and lambda_layers_to_pin | length > 0
   block:
+    - name: 'create tmp folder'
+      ansible.builtin.file:
+        path: '{{ workspace_path }}/tmp'
+        state: 'directory'
+      changed_when: False
+    - name: 'copy update_project.sh to tmp dir and make it executable'
+      ansible.builtin.copy:
+        src: '{{ role_path }}/files/update_project.sh'
+        dest: '{{ workspace_path }}/tmp/update_project.sh'
+        mode: 'u+x'
     - name: 'update pyproject.toml'
+      ansible.builtin.shell: '{{ workspace_path }}/tmp/update_project.sh "{{ update_non_pinned_deps | lower }}" "{{ lambda_layers_to_pin | join(" ") }}"'
       args:
-        executable: '/bin/bash'
-      shell: |
-        set -e
-        update_non_pinned_deps={{ update_non_pinned_deps | lower }}
-        # create a temporary directory
-        tmpdir=$(mktemp -d)
-        cd "$tmpdir"
-        # gather lambda layers dependencies
-        layers={{ lambda_layers_to_pin | join(",") }}
-        for layer in ${layers//,/ }
-        do
-            URL=$(aws lambda get-layer-version-by-arn --arn "$layer" --query Content.Location --output text)
-            curl "$URL" -o layer.zip
-            # silent
-            unzip -o layer.zip > /dev/null
-            rm layer.zip
-        done
-        all_deps=$(pip list --format=freeze --path python --path python/lib/python3.10/site-packages --exclude wheel --exclude  pip --exclude setuptools --exclude distribute)
-        pinned_deps=$(echo "$all_deps" | grep "==")
-        non_pinned_deps=$(echo "$all_deps" | grep -v "==" | sed 's/@.*//')
-        # update pyproject.toml flow:
-        #  - remove all dependencies from poetry that are pinned in the lambda layers (NOTE: they must exist be in both the lambda layers and pyproject.toml)
-        #  - (optional if update_non_pinned_deps==true) remove all dependencies from poetry that are not pinned but existing in the lambda layers (NOTE: they must exist be in both the lambda layers and pyproject.toml)
-        #  - add all dependencies (with the lambda layers pinning) to poetry
-        cd "{{ source_dir }}"
-        # get all dependencies from pyproject.toml
-        poetry_deps=$(poetry show | sed 's/ .*//')
-        deps_array=()
-        if [ -n "$pinned_deps" ]; then
-          pinned_deps_wo_version=$(echo "$pinned_deps" | sed 's/==.*//')
-          pinned_deps_to_remove=$(comm -12 <(echo "$pinned_deps_wo_version" | sort) <(echo "$poetry_deps" | sort))
-          if [ -n "$pinned_deps_to_remove" ]; then
-            # conver to array
-            pinned_deps_to_remove_array=()
-            while IFS= read -r line; do
-              pinned_deps_to_remove_array+=("$line")
-            done <<< "$pinned_deps_to_remove"
-            poetry remove --lock $pinned_deps_to_remove_array
-          fi
-          while IFS= read -r line; do
-            deps_array+=("$line")
-          done <<< "$pinned_deps"
-        fi
-
-        if [ -n "$non_pinned_deps" ] && [ "$update_non_pinned_deps" = true ]; then
-          # intersect non_pinned_deps and poetry_deps
-          non_pinned_deps_to_remove=$(comm -12 <(echo "$non_pinned_deps" | sort) <(echo "$poetry_deps" | sort))
-          if [ -n "$non_pinned_deps_to_remove" ]; then
-            # to array
-            non_pinned_deps_to_remove_array=()
-            while IFS= read -r line; do
-              non_pinned_deps_to_remove_array+=("$line")
-            done <<< "$non_pinned_deps_to_remove"
-            poetry remove --lock $non_pinned_deps_to_remove_array
-          fi
-          while IFS= read -r line; do
-            deps_array+=("$line")
-          done <<< "$non_pinned_deps"
-        fi
-        if [ "$#deps_array[@]" -gt 0 ]; then
-          poetry add --lock --group from_lambda_layers $deps_array
-        fi
-        # clean up
-        rm -rf "$tmpdir"
+        chdir: '{{ source_dir }}'
     - name: 'fail if poetry.lock has changed in git (allow just comments to change)'
       shell: |
         cd "{{ source_dir }}"
