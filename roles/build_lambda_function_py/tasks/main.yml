@@ -98,7 +98,7 @@
             deps_array+=("$line")
           done <<< "$non_pinned_deps"
         fi
-        if [ "${#deps_array[@]}" -gt 0 ]; then
+        if [ "$#deps_array[@]" -gt 0 ]; then
           poetry add --lock --group from_lambda_layers $deps_array
         fi
         # clean up
