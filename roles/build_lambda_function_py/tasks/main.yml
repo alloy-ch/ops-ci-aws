@@ -116,6 +116,26 @@
   command: >
     docker pull {{ lambda_runtime_docker_image_python }}
 
+- name: 'get pyproject.toml groups'
+  shell: >
+    cat "{{ source_dir }}/pyproject.toml" | grep -E '^\[tool\.poetry\.group\..*$' | sed -E 's/^\[tool\.poetry\.group\.(.*)[.\].*$/\1/' | sort | uniq
+  register: r_poetry_groups
+
+- name: 'intersect the groups with poetry_without'
+  set_fact:
+    poetry_without: '{{ poetry_without | default([]) | intersect(r_poetry_groups.stdout_lines) }}'
+  when: poetry_without is defined and poetry_without | length > 0
+
+- name: 'intersect the groups with poetry_with'
+  set_fact:
+    poetry_with: '{{ poetry_with | default([]) | intersect(r_poetry_groups.stdout_lines) }}'
+  when: poetry_with is defined and poetry_with | length > 0
+
+- name: 'intersect the groups with poetry_only'
+  set_fact:
+    poetry_only: '{{ poetry_only | default([]) | intersect(r_poetry_groups.stdout_lines) | union(["main"]) }}'
+  when: poetry_only is defined and poetry_only | length > 0
+
 - name: 'build the app inside lambda runtime container'
   command: >
     docker run --rm
@@ -123,6 +143,9 @@
       -v "{{ intermediate_dir }}:/workspace"
       --entrypoint "/workspace/docker_build_python.sh"
       {{ lambda_runtime_docker_image_python }}
+      {% if poetry_only is defined and poetry_only | length > 0 %}--only {{ poetry_only | join(',') }}{% endif %}
+      {% if poetry_without is defined and poetry_without | length > 0 %}--without {{ poetry_without | join(',') }}{% endif %}
+      {% if poetry_with is defined and poetry_with | length > 0 %}--with {{ poetry_with | join(',') }}{% endif %}
 
 - name: 'set output'
   set_fact:
