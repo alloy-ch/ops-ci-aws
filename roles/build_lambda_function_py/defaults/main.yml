@@ -12,3 +12,5 @@ poetry_without:
   - 'tests'
 poetry_with: []
 poetry_only: []
+strict: true
+packages: []
