@@ -143,6 +143,8 @@
       -v "{{ intermediate_dir }}:/workspace"
       --entrypoint "/workspace/docker_build_python.sh"
       {{ lambda_runtime_docker_image_python }}
+      {% if strict %}--strict{% endif %}
+      {% if packages is defined and packages | length > 0 %}--packages {{ packages | join(',') }}{% endif %}
       {% if poetry_only is defined and poetry_only | length > 0 %}--only {{ poetry_only | join(',') }}{% endif %}
       {% if poetry_without is defined and poetry_without | length > 0 %}--without {{ poetry_without | join(',') }}{% endif %}
       {% if poetry_with is defined and poetry_with | length > 0 %}--with {{ poetry_with | join(',') }}{% endif %}

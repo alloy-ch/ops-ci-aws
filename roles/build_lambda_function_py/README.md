@@ -41,10 +41,15 @@ In order to keep the dependencies installed in the lambda function minimal the f
 
 | Param                                | Mandatory | Type | Default                       | Description                                                                       |
 |:-------------------------------------|:---------:|:----:|:------------------------------|:----------------------------------------------------------------------------------|
-| `source_path`                        |    No     | str   | `{{ playbook_dir }}/../app`         | Dir of the TypeScript app, where the corresponding`package.json` is located.    |
+| `source_path`                        |    No     | str   | `{{ playbook_dir }}/../app`         | Dir of the TypeScript app, where the corresponding `package.json` is located.    |
 | `lambda_runtime_docker_image_python` |    No     | str   | `public.ecr.aws/lambda/python:3.10` | Docker image to use for the build. Refer to [the definition](./defaults/main.yml) |
 | `lambda_layers_to_pin`               |    No     | array | `[]`                                | Lambda layers that will be used in order to check whether the pyproject.yml file is up-to-date |
-| `update_non_pinned_deps`             |    No     | bool  | `true`                                | Whether the dependencies from the lambda layers for those it is not possible to resolve a version should be added/updated by the role |
+| `update_non_pinned_deps`             |    No     | bool  | `true`                              | Whether the dependencies from the lambda layers for those it is not possible to resolve a version should be added/updated by the role |
+| `poetry_without`                     |    No     | array | `['dev', 'from_lambda_layers', 'runtime', 'types', 'test', 'tests']`                                | List of groups to ignore when installing the dependencies |
+| `poetry_with`                        |    No     | array | `[]`                                | List of groups to install when installing the dependencies |
+| `poetry_only`                        |    No     | array | `[]`                                | List of groups to install when installing the dependencies, ignoring the rest |
+| `strict`                             |    No     | bool  | `true`                              | Whether to fail if boto3 and botocore are not pinned to the same version as the ones used in the lambda runtime |
+| `packages`                           |    No     | array | `[]`                                | List of poetry packages to install in the lambda function. If empty, all the packages will be installed |
 
 ## Outputs
 
