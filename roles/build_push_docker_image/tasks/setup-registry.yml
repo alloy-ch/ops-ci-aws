@@ -34,6 +34,12 @@
   no_log: '{{ ansible_verbosity < 3 }}'
 
 - name: '[{{ ecr_repository_name }}] login to rcplus Nexus'
-  # the authentication is in-place to prevent the registry from being accessed publicly.
-  command: 'docker login --username alloy-cicd --password ringier-alloy https://docker.rcplus.io/'
-  no_log: '{{ ansible_verbosity < 3 }}'
+  block:
+    - name: '[{{ ecr_repository_name }}] retrieve Nexus credentials'
+      no_log: '{{ ansible_verbosity < 3 }}'
+      set_fact:
+        nexus_username: "{{ lookup('amazon.aws.aws_ssm', ssmkey_nexus_username, region=aws_region) }}"
+        nexus_password: "{{ lookup('amazon.aws.aws_ssm', ssmkey_nexus_password, decrypt=True, region=aws_region) }}"
+    - name: '[{{ ecr_repository_name }}] login to Nexus Docker registry'
+      no_log: '{{ ansible_verbosity < 3 }}'
+      shell: echo "{{ nexus_password }}" | docker login --username {{ nexus_username }} --password-stdin https://docker.rcplus.io/

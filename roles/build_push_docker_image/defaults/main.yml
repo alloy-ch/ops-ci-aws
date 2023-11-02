@@ -6,3 +6,6 @@ prebuilt_image_tag: ''
 docker_build_args: {}
 adhoc_deploy: false
 extra_buildx_build_args: ''
+
+ssmkey_nexus_username: '/ops-ci/nexus-username'
+ssmkey_nexus_password: '/ops-ci/nexus-password'
