@@ -13,8 +13,13 @@
   when: use_eks | default(false) | bool
   block:
     # it can happen that when initializing the workspace the EKS cluster has not been created, so ignore errors
+    - name: 'retrieve EKS cluster name'
+      command: aws --region {{ aws_region }} cloudformation describe-stacks --stack-name {{ env }}-{{ project_id }}-eks-cluster --query 'Stacks[0].Outputs[?OutputKey==`EksClusterName`].OutputValue' --output text
+      register: r_eks_cluster_name
+      ignore_errors: true
+      when: env != 'ops'
     - name: 'update kubeconfig'
-      command: aws --region {{ aws_region }} eks update-kubeconfig --name {{ env }}-{{ project_id }}-eks
+      command: aws --region {{ aws_region }} eks update-kubeconfig --name {{ r_eks_cluster_name.stdout }}
       ignore_errors: true
       when: env != 'ops'
     - name: 'protect Kubernetes configuration file'
