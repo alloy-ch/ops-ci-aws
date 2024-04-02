@@ -33,17 +33,17 @@ use the direct git approach.
 
 To install the latest version from the default branch:
 ```shell-script
-ansible-galaxy collection install --force git+https://github.com/ringier-data/ops-ci-aws.git
+ansible-galaxy collection install --force git+https://github.com/alloy-ch/ops-ci-aws.git
 ```
 
 To install a specific tagged version:
 ```shell-script
-ansible-galaxy collection install --force git+https://github.com/ringier-data/ops-ci-aws.git,v2.3.1
+ansible-galaxy collection install --force git+https://github.com/alloy-ch/ops-ci-aws.git,v2.3.1
 ```
 
 To install a specific git commit:
 ```shell-script
-ansible-galaxy collection install --force git+https://github.com/ringier-data/ops-ci-aws.git,7b60ddc245bc416b72d8ea6ed7b799885110f5e5
+ansible-galaxy collection install --force git+https://github.com/alloy-ch/ops-ci-aws.git,7b60ddc245bc416b72d8ea6ed7b799885110f5e5
 ```
 A note for all the `ansible-galaxy collection install` examples above: `ansible-galaxy` itself does not handle the upgrade if the remote
 collection has a higher version than the locally installed one, according to [this Github issue](https://github.com/ansible/ansible/issues/65699).
