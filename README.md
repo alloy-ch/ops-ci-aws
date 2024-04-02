@@ -21,7 +21,6 @@ This repository holds the shared Ansible roles, modules and tasks for projects t
 *  [deploy_to_k8s](./roles/deploy_to_k8s/README.md)
 *  [init_workspace](./roles/init_workspace/README.md)
 *  [run_cloudformation](./roles/run_cloudformation/README.md)
-*  [ship_logs_to_logzio](./roles/ship_logs_to_logzio/README.md)
 
 
 ## Usage
