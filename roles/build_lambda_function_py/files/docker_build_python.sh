@@ -115,6 +115,16 @@ if [ -n "$without" ]; then
 fi
 # run the command
 eval "$cmd"
+
+# remove all dependencies that are pinned in the lambda layers
+removable_packages=$(sed -n '/\[tool.poetry.group.from_lambda_layers.dependencies\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/ =.*//')
+
+for package in $removable_packages
+do
+    echo "Removing pinned dependency $package from site-packages"
+    rm -rf .venv/lib/python*/site-packages/*"$package"*
+done
+
 echo "Packing release files"
 cp --recursive --no-preserve=ownership .venv/lib/python*/site-packages/* /output/
 # if packages are empty then we copy all packages from pyproject.toml
