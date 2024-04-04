@@ -14,6 +14,7 @@
   vars:
     stack_name: '{{ ecr_stack_name }}'
     template: '{{ cf_ecr_template }}'
+    skip_version_tag: true
 
 - name: '[{{ ecr_repository_name }}] gather the ECR stack outputs'
   ringier.aws_cicd.gather_stack_outputs:
