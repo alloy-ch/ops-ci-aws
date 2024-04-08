@@ -117,12 +117,16 @@ fi
 eval "$cmd"
 
 # remove all dependencies that are pinned in the lambda layers
-removable_packages=$(sed -n '/\[tool.poetry.group.from_lambda_layers.dependencies\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/ =.*//')
+lambda_packages=$(sed -n '/\[tool.poetry.group.from_lambda_layers.dependencies\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/ =.*//')
+runtime_packages=$(sed -n '/\[tool.poetry.group.runtime.dependencies\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/ =.*//')
+removable_packages=$lambda_packages"/n"$runtime_packages
 
 echo "Removing pinned dependencies from site-packages"
 for package in $removable_packages
 do
-    rm -rf .venv/lib/python*/site-packages/*"$package"*
+    rm -rf .venv/lib/python*/site-packages/"$package"
+    rm -rf .venv/lib/python*/site-packages/"$package"-*.dist-info
+    rm -rf .venv/lib/python*/site-packages/"$package".libs
 done
 
 echo "Packing release files"
