@@ -117,9 +117,10 @@ fi
 eval "$cmd"
 
 # remove all dependencies that are pinned in the lambda layers
+newline=$'\n'
 lambda_packages=$(sed -n '/\[tool.poetry.group.from_lambda_layers.dependencies\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/ =.*//')
 runtime_packages=$(sed -n '/\[tool.poetry.group.runtime.dependencies\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/ =.*//')
-removable_packages=$lambda_packages"/n"$runtime_packages
+removable_packages="$lambda_packages$newline$runtime_packages"
 
 echo "Removing pinned dependencies from site-packages"
 for package in $removable_packages
