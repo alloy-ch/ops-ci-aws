@@ -7,22 +7,8 @@
     dest: '{{ workspace_path }}/cloudformation.yml'
   no_log: '{{ ansible_verbosity < 3 }}'
 
-- name: '[{{ stack_name }}] check if SAM is needed to deploy the stack'
-  set_fact:
-    is_sam_required: "{{ true if lookup('file', workspace_path + '/cloudformation.yml').find('AWS::Serverless-') != -1 else false }}"
-
-- name: '[{{ stack_name }}] check if sam-cli exists'
-  when: is_sam_required
-  block:
-    - name: '[{{ stack_name }}] check if sam-cli exists'
-      shell: command -v sam >/dev/null 2>&1
-      register: rc_check_sam_cli
-      ignore_errors: yes
-    - set_fact:
-        does_sam_cli_exist: '{{ rc_check_sam_cli.rc == 0 }}'
-
 #
-# get name of the correct S3 bucket
+# get the name of the correct S3 bucket
 #
 - name: '[{{ stack_name }}] retrieve the infrastructure S3 bucket name from deployed CloudFormation stacks'
   block:
@@ -64,9 +50,9 @@
 #
 # SAM processing, if relevant
 #
-- name: '[{{ stack_name }}] packing (use samcli if relevant)'
+- name: '[{{ stack_name }}] packing'
   command: >-
-    {{ 'sam' if is_sam_required and does_sam_cli_exist else 'aws cloudformation' }} package
+    aws cloudformation package
        --template-file {{ workspace_path }}/cloudformation.yml
        --output-template-file {{ workspace_path }}/cloudformation-final.yml
        --s3-bucket {{ deployment_bucket }}
@@ -81,7 +67,7 @@
 - name: '[{{ stack_name }}] apply stack updates'
   when: not async_deploy
   command: >-
-    {{ 'sam' if is_sam_required and does_sam_cli_exist else 'aws cloudformation' }} deploy
+    aws cloudformation deploy
       --template-file {{ workspace_path }}/cloudformation-final.yml
       --s3-bucket {{ deployment_bucket }}
       --s3-prefix {{ git_info.repo_name }}
@@ -100,11 +86,11 @@
         {{ '' if skip_version_tag else 'GitPendingChanges="' + git_info.has_pending_changes | string + '"' }}
       --no-fail-on-empty-changeset
 
-# deploy the non blocking way
+# deploy the non-blocking way
 - name: "[{{ stack_name }}] apply stack updates"
   when: async_deploy
   command: >-
-    {{ 'sam' if is_sam_required and does_sam_cli_exist else 'aws cloudformation' }} deploy
+    aws cloudformation deploy
       --template-file {{ workspace_path }}/cloudformation-final.yml
       --s3-bucket {{ deployment_bucket }}
       --s3-prefix {{ git_info.repo_name }}
