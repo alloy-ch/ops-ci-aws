@@ -1,6 +1,6 @@
 # ops-ci-aws
 
-**Current version: v2.3.3**
+**Current version: v2.4.0**
 
 This repository holds the shared Ansible roles, modules and tasks for projects to be deployed into AWS. It creates an Ansible collection.
 
