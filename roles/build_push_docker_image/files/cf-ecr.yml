@@ -13,35 +13,36 @@ Resources:
       # NOTE-zw: the lovely AWS makes inconsistency between such a short distance. Here the `LifecyclePolicyText`
       # is literally a text (of type String), while several lines down there, the `RepositoryPolicyText` is a
       # JsonObject, therefore we could use the YAML representation...
-      LifecyclePolicyText: |
-        {
-          "rules": [{
-            "rulePriority": 10,
-            "description": "Keep 10 most recent tagged images",
-            "selection": {
-              "tagStatus": "tagged",
-              "tagPatternList": ["*"],
-              "countType": "imageCountMoreThan",
-              "countNumber": 10
-            },
-            "action": {
-              "type": "expire"
-            }
-          },
+      LifecyclePolicy:
+        LifecyclePolicyText: |
           {
-            "rulePriority": 100,
-            "description": "Expire old untagged images after four weeks",
-            "selection": {
-              "tagStatus": "untagged",
-              "countType": "sinceImagePushed",
-              "countNumber": 28,
-              "countUnit": "days"
+            "rules": [{
+              "rulePriority": 10,
+              "description": "Keep 10 most recent tagged images",
+              "selection": {
+                "tagStatus": "tagged",
+                "tagPatternList": ["*"],
+                "countType": "imageCountMoreThan",
+                "countNumber": 10
+              },
+              "action": {
+                "type": "expire"
+              }
             },
-            "action": {
-              "type": "expire"
-            }
-          }]
-        }
+            {
+              "rulePriority": 100,
+              "description": "Expire old untagged images after four weeks",
+              "selection": {
+                "tagStatus": "untagged",
+                "countType": "sinceImagePushed",
+                "countNumber": 28,
+                "countUnit": "days"
+              },
+              "action": {
+                "type": "expire"
+              }
+            }]
+          }
 #{% if share_with_org_unit is defined and share_with_org_unit != '' %}
 #
       RepositoryPolicyText:
