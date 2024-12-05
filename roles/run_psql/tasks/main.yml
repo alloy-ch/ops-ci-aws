@@ -1,0 +1,36 @@
+---
+
+- name: '[run_psql] Check that mandatory variables are defined'
+  assert:
+    quiet: true
+    that:
+      - rds_endpoint | length > 0
+      - rds_port | length > 0
+      - rds_username | length > 0
+      - rds_db_name | length > 0
+      - ssmkey_rds_ca | length > 0
+      - queries | length > 0
+
+- name: '[run_psql @ {{ rds_endpoint }}/{{ rds_db_name }}] Build postgresql-client Docker image'
+  shell: 'docker build -t psql --build-arg SSL_CA -f {{ role_path }}/files/Dockerfile.psql-client .'
+  environment:
+    SSL_CA: "{{lookup('aws_ssm', ssmkey_rds_ca )}}"
+
+- name: '[run_psql @ {{ rds_endpoint }}/{{ rds_db_name }}] Generate RDS IAM Login Token if needed'
+  when: (rds_password is not defined) or (rds_password | length == 0)
+  no_log: true
+  set_fact:
+    should_reset_rds_password: "true"
+    rds_password: "{{ lookup('ringier.aws_cicd.aws_rds_auth_token', hostname=rds_endpoint, port=rds_port, username=rds_username )}}"
+
+- name: '[run_psql @ {{ rds_endpoint }}/{{ rds_db_name }}] Prepare output variable'
+  set_fact:
+    run_psql_results: []
+
+- include_tasks: execute.yml
+  loop: "{{ queries }}"
+
+- name: '[run_psql @ {{ rds_endpoint }}/{{ rds_db_name }}] Unset rds_password'
+  when: should_reset_rds_password
+  set_fact:
+    rds_password: ""

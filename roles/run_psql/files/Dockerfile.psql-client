@@ -1,0 +1,10 @@
+FROM public.ecr.aws/docker/library/alpine:latest
+ARG SSL_CA=''
+
+RUN apk --no-cache add postgresql-client
+
+RUN echo "$SSL_CA" > /ssl_ca.pem
+ENV PGSSLROOTCERT=/ssl_ca.pem
+ENV PGSSLMODE=verify-full
+
+ENTRYPOINT [ "psql" ]
