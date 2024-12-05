@@ -1,0 +1,110 @@
+---
+
+# ====================== Check that all the required parameters are provided ===================
+
+- name: "[{{ rds_db_name }}.{{ app_db_username }}] check if 'app_db_username' is supplied"
+  fail: msg="missing var 'app_db_username'"
+  when: app_db_username == ''
+
+- name: "[{{ rds_db_name }}.{{ app_db_username }}] check if 'ssmkey_rds_app_user_username_key' is supplied"
+  fail: msg="missing var 'ssmkey_rds_app_user_username_key'"
+  when: ssmkey_rds_app_user_username_key == ''
+
+- name: '[{{ rds_db_name }}.{{ app_db_username }}] check if rds endpoint is specified'
+  fail: msg="rds endpoint is not specified. Please define either 'rds_endpoint' or 'rds_endpoint_cloudformation_export_name'"
+  when: rds_endpoint == '' and rds_endpoint_cloudformation_export_name == ''
+
+- name: '[{{ rds_db_name }}.{{ app_db_username }}] get rds_endpoint if needed'
+  when: rds_endpoint == ''
+  register: r_export_value
+  command: |
+    aws --region {{ aws_region }} cloudformation list-exports \
+      --output text --max-items 100000 \
+      --query 'Exports[?Name==`{{ rds_endpoint_cloudformation_export_name }}`].Value'
+
+- name: '[{{ rds_db_name }}.{{ app_db_username }}] set the variable'
+  when: rds_endpoint == ''
+  set_fact:
+    rds_endpoint: '{{ r_export_value.stdout }}'
+
+# ====================== Get master auth  ======================
+
+- name: '[{{ rds_db_name }}.{{ app_db_username }}] generate AWS IAM RDS Token'
+  command: |
+    aws rds generate-db-auth-token
+    --hostname {{ rds_endpoint }}
+    --port {{ rds_port }}
+    --region {{ aws_region }}
+    --username {{ rds_username }}
+  register: r_rds_password
+  no_log: true
+
+- name: '[{{ rds_db_name }}.{{ app_db_username }}] set master auth variables'
+  set_fact:
+    rds_username: "{{ lookup('amazon.aws.aws_ssm', ssmkey_rds_master_username_key, region=aws_region) }}"
+    rds_password: "{{ r_rds_password.stdout }}"
+  no_log: true
+
+# ============================== Build psql =============================
+
+- name: '[{{ rds_db_name }}.{{ app_db_username }}] build PostgreSQL client Docker image'
+  command: docker build -t psql-client -f {{ playbook_dir }}/../ops-ci-shared/misc/docker/Dockerfile.psql-client .
+
+# ====================== Create app-specific PostgreSQL user ===================
+
+- name: '[{{ rds_db_name }}.{{ app_db_username }}] check if user already exists in Postgres'
+  register: result
+  environment:
+    PGPASSWORD: '{{ rds_password }}'
+  no_log: '{{ ansible_verbosity < 3 }}'
+  command: >-
+    docker run --rm -e PGPASSWORD psql-client -At -c "
+      SELECT count(*) FROM pg_roles WHERE rolname='{{ app_db_username }}'
+    " postgresql://{{ rds_username }}@{{ rds_endpoint }}:{{ rds_port }}/{{ rds_db_name }}
+
+- name: '[{{ rds_db_name }}.{{ app_db_username }}] set the flag'
+  set_fact:
+    user_does_not_exist: "{{ result.stdout == '0' }}"
+
+- name: '[{{ rds_db_name }}.{{ app_db_username }}] check if username already exists in SSM'
+  command: aws --region {{ aws_region }} ssm get-parameter --name {{ ssmkey_rds_app_user_username_key }}
+  register: result_name
+  failed_when: result_name.rc not in [0] and ('ParameterNotFound' not in result_name.stderr)
+  changed_when: result_name.rc not in [0]
+  no_log: '{{ ansible_verbosity < 3 }}'
+
+- name: '[{{ rds_db_name }}.{{ app_db_username }}] set the flags'
+  set_fact:
+    user_name_does_not_exist_in_ssm: "{{ 'ParameterNotFound' in result_name.stderr }}"
+
+- name: '[{{ rds_db_name }}.{{ app_db_username }}] upload user name to SSM'
+  aws_ssm_parameter_store:
+    region: '{{ aws_region }}'
+    overwrite_value: 'never'
+    name: '{{ ssmkey_rds_app_user_username_key }}'
+    description: 'Username to access the database'
+    string_type: 'String'
+    value: '{{ app_db_username }}'
+  when: user_name_does_not_exist_in_ssm
+
+- name: '[{{ rds_db_name }}.{{ app_db_username }}] create user'
+  environment:
+    PGPASSWORD: '{{ rds_password }}'
+  when: user_does_not_exist
+  command: >-
+    docker run --rm -e PGPASSWORD psql-client -c "
+      CREATE USER {{ app_db_username }};
+
+      GRANT rds_iam TO {{ app_db_username }};
+
+      GRANT {{ database_privileges }} ON DATABASE {{ rds_db_name }} TO {{ app_db_username }};
+      GRANT {{ schema_privileges }} ON SCHEMA {{ rds_schema_name }} TO {{ app_db_username }};
+      GRANT {{ sequence_privileges }} ON ALL SEQUENCES IN SCHEMA {{ rds_schema_name }} TO {{ app_db_username }};
+      GRANT {{ table_privileges }} ON ALL TABLES IN SCHEMA {{ rds_schema_name }} TO {{ app_db_username }};
+      GRANT {{ function_privileges }} ON ALL FUNCTIONS IN SCHEMA {{ rds_schema_name }} TO {{ app_db_username }};
+
+      ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema_name }} GRANT {{ table_privileges }} ON TABLES TO {{ app_db_username }};
+      ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema_name }} GRANT {{ sequence_privileges }} ON SEQUENCES TO {{ app_db_username }};
+      ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema_name }} GRANT {{ function_privileges }} ON FUNCTIONS TO {{ app_db_username }};
+      ALTER USER {{ app_db_username }} SET search_path='{{ rds_schema_name }}';
+    " postgresql://{{ rds_username }}@{{ rds_endpoint }}:{{ rds_port }}/{{ rds_db_name }}
