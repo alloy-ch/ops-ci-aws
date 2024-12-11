@@ -23,6 +23,10 @@
     should_reset_rds_password: "true"
     rds_password: "{{ lookup('aws_rds_auth_token', hostname=rds_endpoint, port=rds_port, username=rds_username )}}"
 
+- name: '[run_psql @ {{ rds_endpoint }}/{{ rds_db_name }}] Prepare output variable'
+  set_fact:
+    run_psql_results: []
+
 - include_tasks: execute.yml
   loop: "{{ queries }}"
 
