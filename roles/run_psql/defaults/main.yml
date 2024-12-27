@@ -2,3 +2,4 @@
 
 ssmkey_rds_ca: "/{{ env }}/{{ project_id }}/rds-ca"
 rds_port: 5432
+should_reset_rds_password: false

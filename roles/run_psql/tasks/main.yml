@@ -20,7 +20,7 @@
   when: (rds_password is not defined) or (rds_password | length == 0)
   no_log: true
   set_fact:
-    should_reset_rds_password: "true"
+    should_reset_rds_password: true
     rds_password: "{{ lookup('ringier.aws_cicd.aws_rds_auth_token', hostname=rds_endpoint, port=rds_port, username=rds_username )}}"
 
 - name: '[run_psql @ {{ rds_endpoint }}/{{ rds_db_name }}] Prepare output variable'
