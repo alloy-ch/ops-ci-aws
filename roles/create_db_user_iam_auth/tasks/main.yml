@@ -68,33 +68,33 @@
     set_fact:
       privileges_sql: |-
         GRANT CONNECT ON DATABASE {{ rds_db_name }} TO {{ user_username }};
-        GRANT USAGE ON SCHEMA {{ rds_schema_name }} TO {{ user_username }};
+        GRANT USAGE ON SCHEMA {{ rds_schema }} TO {{ user_username }};
 
   - name: '[create_db_user_iam_auth][{{user_username}} @ {{ rds_endpoint }}/{{ rds_db_name }}] Construct read privileges'
     when: privileges == 'read'
     set_fact:
       privileges_sql: |-
         GRANT CONNECT ON DATABASE {{ rds_db_name }} TO {{ user_username }};
-        GRANT USAGE ON SCHEMA {{ rds_schema_name }} TO {{ user_username }};
+        GRANT USAGE ON SCHEMA {{ rds_schema }} TO {{ user_username }};
 
-        GRANT SELECT ON ALL TABLES IN SCHEMA {{ rds_schema_name }} TO {{ user_username }};
-        ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema_name }} GRANT SELECT,UPDATE,DELETE,INSERT ON TABLES TO {{ user_username }};
+        GRANT SELECT ON ALL TABLES IN SCHEMA {{ rds_schema }} TO {{ user_username }};
+        ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema }} GRANT SELECT ON TABLES TO {{ user_username }};
 
   - name: '[create_db_user_iam_auth][{{user_username}} @ {{ rds_endpoint }}/{{ rds_db_name }}] Construct read privileges'
     when: privileges == 'read_write'
     set_fact:
       privileges_sql: |-
         GRANT CONNECT ON DATABASE {{ rds_db_name }} TO {{ user_username }};
-        GRANT USAGE ON SCHEMA {{ rds_schema_name }} TO {{ user_username }};
+        GRANT USAGE ON SCHEMA {{ rds_schema }} TO {{ user_username }};
 
-        GRANT SELECT,UPDATE,DELETE,INSERT ON ALL TABLES IN SCHEMA {{ rds_schema_name }} TO {{ user_username }};
-        ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema_name }} GRANT SELECT,UPDATE,DELETE,INSERT ON TABLES TO {{ user_username }};
+        GRANT SELECT,UPDATE,DELETE,INSERT ON ALL TABLES IN SCHEMA {{ rds_schema }} TO {{ user_username }};
+        ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema }} GRANT SELECT,UPDATE,DELETE,INSERT ON TABLES TO {{ user_username }};
 
-        GRANT SELECT, USAGE ON ALL SEQUENCES IN SCHEMA {{ rds_schema_name }} TO {{ user_username }};
-        ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema_name }} GRANT SELECT, USAGE ON SEQUENCES TO {{ user_username }};
+        GRANT SELECT, USAGE ON ALL SEQUENCES IN SCHEMA {{ rds_schema }} TO {{ user_username }};
+        ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema }} GRANT SELECT, USAGE ON SEQUENCES TO {{ user_username }};
 
-        GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {{ rds_schema_name }} TO {{ user_username }};
-        ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema_name }} GRANT EXECUTE ON FUNCTIONS TO {{ user_username }};
+        GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {{ rds_schema }} TO {{ user_username }};
+        ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema }} GRANT EXECUTE ON FUNCTIONS TO {{ user_username }};
  
   - include_role:
       name: 'run_psql'
@@ -105,7 +105,7 @@
           query: |
             CREATE USER {{ user_username }};
             GRANT rds_iam TO {{ user_username }};
-            ALTER USER {{ user_username }} SET search_path='{{ rds_schema_name }}';
+            ALTER USER {{ user_username }} SET search_path='{{ rds_schema }}';
             {{ privileges_sql }}
 
 # Necessary for migration from non-RDS Auth
