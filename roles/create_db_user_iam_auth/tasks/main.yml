@@ -46,6 +46,7 @@
 - name: '[create_db_user_iam_auth][{{user_username}} @ {{ rds_endpoint }}/{{ rds_db_name }}] Store flag user_does_not_exist'
   set_fact:
     user_does_not_exist: "{{ run_psql_results[0] == '0' }}"
+    user_does_exist: "{{ run_psql_results[0] == '1' }}"
 
 - name: '[create_db_user_iam_auth][{{user_username}} @ {{ rds_endpoint }}/{{ rds_db_name }}] Upload user name to SSM'
   ringier.aws_cicd.ssm_parameter:
@@ -106,3 +107,14 @@
             GRANT rds_iam TO {{ user_username }};
             ALTER USER {{ user_username }} SET search_path='{{ rds_schema_name }}';
             {{ privileges_sql }}
+
+# Necessary for migration from non-RDS Auth
+- when: user_does_exist
+  include_role:
+    name: 'run_psql'
+  vars:
+    rds_username: '{{ lookup("aws_ssm", ssmkey_rds_master_user_username, decrypt=True) }}'
+    queries:
+      - name: ensure {{ user_username }} has rds_iam role
+        query: |
+          GRANT rds_iam TO {{ user_username }};
