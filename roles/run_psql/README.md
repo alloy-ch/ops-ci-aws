@@ -16,13 +16,14 @@ This commad will always use full server certificate verification - meaning you c
 
 ## Outputs
 
-None
+Variable:
+* `run_psql_results`: a list with the outputs from the queries.
 
 ## Examples
 
 ```ansible
 - include_role:
-    name: 'run_psql'
+    name: 'ringier.aws_cicd.run_psql'
   vars:
     rds_endpoint: '{{ rds_endpoint }}'
     rds_username: '{{ rds_username }}'

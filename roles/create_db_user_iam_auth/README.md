@@ -43,3 +43,20 @@ None
     rds_endpoint: "{{ storage_stack.outputs.RdsInstanceEndpointAddress }}"
     rds_port: "{{ storage_stack.outputs.RdsInstanceEndpointPort }}"
 ```
+
+```ansible
+
+- include_role:
+    name: 'ringier.aws_cicd.create_db_user_iam_auth'
+  vars:
+    user_username: '{{ item.username }}'
+    ssmkey_user_username: '{{ item.ssmkey }}'
+    privileges: '{{ item.privileges }}'
+  loop:
+  - username: '{{ rds_app_username }}'
+    ssmkey: '{{ ssmkey_rds_app_username }}'
+    privileges: 'connect_only' # permissions will be added in DDL
+  - username: '{{ readonly_user_username }}'
+    ssmkey: '{{ ssmkey_readonly_user_username }}'
+    privileges: 'read'
+```
