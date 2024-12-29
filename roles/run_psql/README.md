@@ -23,7 +23,7 @@ Variable:
 
 ```ansible
 - include_role:
-    name: 'run_psql'
+    name: 'ringier.aws_cicd.run_psql'
   vars:
     rds_endpoint: '{{ rds_endpoint }}'
     rds_username: '{{ rds_username }}'

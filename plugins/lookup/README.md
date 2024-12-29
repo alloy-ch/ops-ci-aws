@@ -8,5 +8,5 @@ This Ansible lookup retrieves RDS IAM authentication token
 
 ```ansible
   - set_fact:
-      rds_password: "{{ lookup('aws_rds_auth_token', hostname=rds_endpoint, port=rds_port, username=rds_username )}}"
+      rds_password: "{{ lookup('ringier.aws_cicd.aws_rds_auth_token', hostname=rds_endpoint, port=rds_port, username=rds_username )}}"
 ```
