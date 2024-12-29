@@ -1,0 +1,38 @@
+---
+
+- name: '[run_psql @ {{ rds_endpoint }}/{{ rds_db_name }}][Query: {{ item.name }}] Create temp file with query'
+  ansible.builtin.tempfile:
+    state: file
+    path: '{{ workspace_path }}'
+    suffix: .sql
+  register: tempfile
+
+- name: '[run_psql @ {{ rds_endpoint }}/{{ rds_db_name }}][Query: {{ item.name }}] Store query in temp file'
+  copy:
+    content: "{{ item.query }}"
+    dest: '{{ tempfile.path }}'
+
+- name: '[run_psql @ {{ rds_endpoint }}/{{ rds_db_name }}][Query: {{ item.name }}] Print query'
+  ansible.builtin.debug:
+    verbosity: 1
+    var: "item.query"
+
+- name: '[run_psql @ {{ rds_endpoint }}/{{ rds_db_name }}][Query: {{ item.name }}] Execute'
+  shell: >-
+    docker run --rm -e PGPASSWORD
+    --mount type=bind,src="{{ workspace_path }}",dst="/workspace"
+    psql
+    --set=ON_ERROR_STOP=true
+    --single-transaction
+    --no-align
+    --tuples-only
+    --file="/workspace/{{ tempfile.path | basename }}"
+    postgresql://{{ rds_username }}@{{ rds_endpoint }}:{{ rds_port }}/{{ rds_db_name }}
+  environment:
+    PGPASSWORD: '{{ rds_password }}'
+  register: result
+
+- name: '[run_psql @ {{ rds_endpoint }}/{{ rds_db_name }}][Query: {{ item.name }}] Add result to facts'
+  set_fact:
+    run_psql_results: '{{ run_psql_results + [ result.stdout ] }}'
+
