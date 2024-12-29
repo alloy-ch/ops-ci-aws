@@ -16,7 +16,8 @@ This commad will always use full server certificate verification - meaning you c
 
 ## Outputs
 
-None
+Variable:
+* `run_psql_results`: a list with the outputs from the queries.
 
 ## Examples
 
