@@ -1,0 +1,120 @@
+---
+
+# ====================== Check that all the required parameters are provided ===================
+- name: '[create_db_user_iam_auth] Check that mandatory variables are defined'
+  assert:
+    quiet: true
+    that:
+      - user_username | length > 0
+      - ssmkey_user_username | length > 0
+
+      - ssmkey_rds_master_user_username | length > 0
+      - rds_endpoint | length > 0
+      - rds_port | length > 0
+      - rds_db_name | length > 0
+      - rds_schema | length > 0
+
+      - privileges == 'connect_only' or privileges == 'read' or privileges == 'read_write'
+
+- name: '[create_db_user_iam_auth][{{user_username}} @ {{ rds_endpoint }}/{{ rds_db_name }}] check if rds endpoint is specified'
+  fail: msg="rds endpoint is not specified. Please define either 'rds_endpoint' or 'rds_endpoint_cloudformation_export_name'"
+  when: rds_endpoint == '' and rds_endpoint_cloudformation_export_name == ''
+
+- name: '[create_db_user_iam_auth][{{user_username}} @ {{ rds_endpoint }}/{{ rds_db_name }}] get rds_endpoint if needed'
+  when: rds_endpoint == ''
+  register: r_export_value
+  command: |
+    aws --region {{ aws_region }} cloudformation list-exports \
+      --output text --max-items 100000 \
+      --query 'Exports[?Name==`{{ rds_endpoint_cloudformation_export_name }}`].Value'
+
+- name: '[create_db_user_iam_auth][{{user_username}} @ {{ rds_endpoint }}/{{ rds_db_name }}] set the variable'
+  when: rds_endpoint == ''
+  set_fact:
+    rds_endpoint: '{{ r_export_value.stdout }}'
+
+# ====================== Create app-specific PostgreSQL user ===================
+
+- include_role:
+    name: 'run_psql'
+  vars:
+    rds_username: '{{ lookup("aws_ssm", ssmkey_rds_master_user_username, decrypt=True) }}'
+    queries:
+      - name: check if user already exists in Postgres
+        query: SELECT count(*) FROM pg_roles WHERE rolname='{{ user_username }}'
+
+- name: '[create_db_user_iam_auth][{{user_username}} @ {{ rds_endpoint }}/{{ rds_db_name }}] Store flag user_does_not_exist'
+  set_fact:
+    user_does_not_exist: "{{ run_psql_results[0] == '0' }}"
+    user_does_exist: "{{ run_psql_results[0] == '1' }}"
+
+- name: '[create_db_user_iam_auth][{{user_username}} @ {{ rds_endpoint }}/{{ rds_db_name }}] Upload user name to SSM'
+  ringier.aws_cicd.ssm_parameter:
+    name: '{{ ssmkey_user_username }}'
+    description: 'Username to access the database'
+    string_type: 'String'
+    value: '{{ user_username }}'
+    tags:
+      Name: '{{ ssmkey_user_username }}'
+      Project: '{{ project_id }}'
+      Environment: '{{ env }}'
+      Repository: '{{ git_info.repo_name }}'
+      Version: '{{ project_version }}'
+
+- when: user_does_not_exist
+  block:
+  - name: '[create_db_user_iam_auth][{{user_username}} @ {{ rds_endpoint }}/{{ rds_db_name }}] Construct only_connect privileges'
+    when: privileges == 'connect_only'
+    set_fact:
+      privileges_sql: |-
+        GRANT CONNECT ON DATABASE {{ rds_db_name }} TO {{ user_username }};
+        GRANT USAGE ON SCHEMA {{ rds_schema }} TO {{ user_username }};
+
+  - name: '[create_db_user_iam_auth][{{user_username}} @ {{ rds_endpoint }}/{{ rds_db_name }}] Construct read privileges'
+    when: privileges == 'read'
+    set_fact:
+      privileges_sql: |-
+        GRANT CONNECT ON DATABASE {{ rds_db_name }} TO {{ user_username }};
+        GRANT USAGE ON SCHEMA {{ rds_schema }} TO {{ user_username }};
+
+        GRANT SELECT ON ALL TABLES IN SCHEMA {{ rds_schema }} TO {{ user_username }};
+        ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema }} GRANT SELECT ON TABLES TO {{ user_username }};
+
+  - name: '[create_db_user_iam_auth][{{user_username}} @ {{ rds_endpoint }}/{{ rds_db_name }}] Construct read privileges'
+    when: privileges == 'read_write'
+    set_fact:
+      privileges_sql: |-
+        GRANT CONNECT ON DATABASE {{ rds_db_name }} TO {{ user_username }};
+        GRANT USAGE ON SCHEMA {{ rds_schema }} TO {{ user_username }};
+
+        GRANT SELECT,UPDATE,DELETE,INSERT ON ALL TABLES IN SCHEMA {{ rds_schema }} TO {{ user_username }};
+        ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema }} GRANT SELECT,UPDATE,DELETE,INSERT ON TABLES TO {{ user_username }};
+
+        GRANT SELECT, USAGE ON ALL SEQUENCES IN SCHEMA {{ rds_schema }} TO {{ user_username }};
+        ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema }} GRANT SELECT, USAGE ON SEQUENCES TO {{ user_username }};
+
+        GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {{ rds_schema }} TO {{ user_username }};
+        ALTER DEFAULT PRIVILEGES IN SCHEMA {{ rds_schema }} GRANT EXECUTE ON FUNCTIONS TO {{ user_username }};
+ 
+  - include_role:
+      name: 'run_psql'
+    vars:
+      rds_username: '{{ lookup("aws_ssm", ssmkey_rds_master_user_username, decrypt=True) }}'
+      queries:
+        - name: create user {{ user_username }}
+          query: |
+            CREATE USER {{ user_username }};
+            GRANT rds_iam TO {{ user_username }};
+            ALTER USER {{ user_username }} SET search_path='{{ rds_schema }}';
+            {{ privileges_sql }}
+
+# Necessary for migration from non-RDS Auth
+- when: user_does_exist
+  include_role:
+    name: 'run_psql'
+  vars:
+    rds_username: '{{ lookup("aws_ssm", ssmkey_rds_master_user_username, decrypt=True) }}'
+    queries:
+      - name: ensure {{ user_username }} has rds_iam role
+        query: |
+          GRANT rds_iam TO {{ user_username }};

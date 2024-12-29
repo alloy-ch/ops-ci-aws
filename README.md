@@ -1,6 +1,6 @@
 # ops-ci-aws
 
-**Current version: v2.4.1**
+**Current version: v2.5.0**
 
 This repository holds the shared Ansible roles, modules and tasks for projects to be deployed into AWS. It creates an Ansible collection.
 
@@ -10,17 +10,23 @@ This repository holds the shared Ansible roles, modules and tasks for projects t
 
 *  [gather_stack_outputs](./plugins/modules/README.md)
 
+### Ansible lookup plugins
+
+*  [aws_rds_auth_token](./plugins/lookup/README.md)
+
 ### Ansible roles
 
 *  [build_lambda_function_ts](./roles/build_lambda_function_ts/README.md)
 *  [build_lambda_function_py](./roles/build_lambda_function_py/README.md)
 *  [build_push_docker_image](./roles/build_push_docker_image/README.md)
 *  [create_acm_ssl_certificate](./roles/create_acm_ssl_certificate/README.md)
+*  [create_db_user_iam_auth](./roles/create_db_user_iam_auth/README.md)
 *  [create_db_user](./roles/create_db_user/README.md)
 *  [del_workspace](./roles/del_workspace/README.md)
 *  [deploy_to_k8s](./roles/deploy_to_k8s/README.md)
 *  [init_workspace](./roles/init_workspace/README.md)
 *  [run_cloudformation](./roles/run_cloudformation/README.md)
+*  [run_psql](./roles/run_psql/README.md)
 
 
 ## Usage
