@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 set -e
-cd /var/runtime
 
 strict=false
 only=""
 with=""
 without=""
 packages=""
+
 # Parse options
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -80,11 +80,35 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-# check that boto3 and botocore in pyproject.toml is the same as in the lambda runtime
+
+# Check that boto3 and botocore versions match between project file and lambda runtime
+cd /var/runtime
 runtime_boto3_version=$(python -c "import boto3;print(boto3.__version__)")
 runtime_botocore_version=$(python -c "import botocore;print(botocore.__version__)")
-pyproject_boto3_version=$(cat /workspace/pyproject.toml | grep '^boto3 ' | cut -d'=' -f2 | tr -d ' ' | tr -d '"')
-pyproject_botocore_version=$(cat /workspace/pyproject.toml | grep '^botocore ' | cut -d'=' -f2 | tr -d ' ' | tr -d '"')
+
+cd /workspace
+
+# Auto-detect package manager
+if [ -f "uv.lock" ]; then
+    package_manager="uv"
+elif [ -f "poetry.lock" ]; then
+    package_manager="poetry"
+else
+    echo "Error: Cannot detect package manager. No uv.lock or poetry.lock found."
+    exit 1
+fi
+
+echo "Using package manager: $package_manager"
+
+if [ "$package_manager" = "uv" ]; then
+    # UV format: "boto3==1.26.90"
+    pyproject_boto3_version=$(cat /workspace/pyproject.toml | grep '"boto3==' | cut -d'=' -f3 | cut -d'"' -f1)
+    pyproject_botocore_version=$(cat /workspace/pyproject.toml | grep '"botocore==' | cut -d'=' -f3 | cut -d'"' -f1)
+else
+    # Poetry format: boto3 = "1.26.90"
+    pyproject_boto3_version=$(cat /workspace/pyproject.toml | grep '^boto3 ' | cut -d'=' -f2 | tr -d ' ' | tr -d '"')
+    pyproject_botocore_version=$(cat /workspace/pyproject.toml | grep '^botocore ' | cut -d'=' -f2 | tr -d ' ' | tr -d '"')
+fi
 
 if [ "$runtime_boto3_version" != "$pyproject_boto3_version" ] || [ "$runtime_botocore_version" != "$pyproject_botocore_version" ]; then
     echo "boto3 and botocore versions in pyproject.toml and lambda runtime are not the same"
@@ -95,48 +119,122 @@ if [ "$runtime_boto3_version" != "$pyproject_boto3_version" ] || [ "$runtime_bot
     fi
 fi
 
-cd /workspace
-echo "Install poetry"
-pip --quiet --disable-pip-version-check --no-color install --no-cache-dir "poetry>=1.0.0" toml
-echo "Installing dependencies"
-poetry config virtualenvs.create true
-poetry config virtualenvs.in-project true
-echo Installing dependencies, by running: 'poetry install "$@" --no-interaction --no-ansi --no-cache'
-# construct the command
-cmd="poetry install --no-interaction --no-ansi --no-cache"
-if [ -n "$only" ]; then
-    cmd="$cmd --only $only"
+# Install package manager and dependencies
+if [ "$package_manager" = "uv" ]; then
+    echo "Install uv < 1.0.0 and toml"
+    pip --quiet --disable-pip-version-check --no-color install --no-cache-dir "uv<1.0.0" toml
+    
+    echo "Installing dependencies with uv"
+    # construct the command
+    cmd="uv sync --no-dev"
+    if [ -n "$only" ]; then
+        cmd="$cmd --only-group $only"
+    fi
+    if [ -n "$with" ]; then
+        cmd="$cmd --group $with"
+    fi
+    if [ -n "$without" ]; then
+        # UV doesn't have a direct --without equivalent, but we handle this in the Ansible task
+        echo "Warning: --without is handled at the task level for UV"
+    fi
+else
+    echo "Install poetry"
+    pip --quiet --disable-pip-version-check --no-color install --no-cache-dir "poetry>=1.0.0" toml
+    
+    echo "Installing dependencies with poetry"
+    poetry config virtualenvs.create true
+    poetry config virtualenvs.in-project true
+    # construct the command
+    cmd="poetry install --no-interaction --no-ansi --no-cache"
+    if [ -n "$only" ]; then
+        cmd="$cmd --only $only"
+    fi
+    if [ -n "$with" ]; then
+        cmd="$cmd --with $with"
+    fi
+    if [ -n "$without" ]; then
+        cmd="$cmd --without $without"
+    fi
 fi
-if [ -n "$with" ]; then
-    cmd="$cmd --with $with"
-fi
-if [ -n "$without" ]; then
-    cmd="$cmd --without $without"
-fi
-# run the command
+
+echo "Running: $cmd"
 eval "$cmd"
 
-# remove all dependencies that are pinned in the lambda layers
-lambda_packages=($(sed -n '/\[tool.poetry.group.from_lambda_layers.dependencies\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/ =.*//'))
-runtime_packages=($(sed -n '/\[tool.poetry.group.runtime.dependencies\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/ =.*//'))
+# Extract dependencies to remove based on package manager
+site_packages_path=".venv/lib/python*/site-packages"
+if [ "$package_manager" = "uv" ]; then
+    # For UV, get dependencies from group sections in pyproject.toml
+    lambda_packages=($(sed -n '/\[dependency-groups\.from_lambda_layers\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/"//g' -e 's/==.*//'))
+    if [ "$strict" = true ]; then
+        runtime_packages=($(sed -n '/\[dependency-groups\.runtime\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/"//g' -e 's/==.*//'))
+    else
+        runtime_packages=()
+    fi
+else
+    # For Poetry, get dependencies from tool.poetry.group sections
+    lambda_packages=($(sed -n '/\[tool.poetry.group.from_lambda_layers.dependencies\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/ =.*//'))
+    if [ "$strict" = true ]; then
+        runtime_packages=($(sed -n '/\[tool.poetry.group.runtime.dependencies\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/ =.*//'))
+    else
+        runtime_packages=()
+    fi
+fi
+
 removable_packages=("${lambda_packages[@]}" "${runtime_packages[@]}")
 
 echo "Removing pinned dependencies from site-packages"
+if [ "$strict" = true ]; then
+    echo "Strict mode: removing both lambda layer and runtime packages"
+else
+    echo "Non-strict mode: removing only lambda layer packages (keeping runtime packages like boto3/botocore)"
+fi
 for package in "${removable_packages[@]}"
 do
-    rm -rf .venv/lib/python*/site-packages/"$package"
-    rm -rf .venv/lib/python*/site-packages/"$package"-*.dist-info
-    rm -rf .venv/lib/python*/site-packages/"$package".libs
+    rm -rf ${site_packages_path}/"$package"
+    rm -rf ${site_packages_path}/"$package"-*.dist-info
+    rm -rf ${site_packages_path}/"$package".libs
 done
 
 echo "Packing release files"
-cp --recursive --no-preserve=ownership .venv/lib/python*/site-packages/* /output/
+cp --recursive --no-preserve=ownership ${site_packages_path}/* /output/
+
 # if packages are empty then we copy all packages from pyproject.toml
+# TODO: this section feels not really necessary if we would use the dot notation to reference the handler,
+#       e.g. `lambda_handler.index.handler` instead of `lambda_handler/index.handler` we just keep it for
+#       backward compatibility for poetry projects only
 if [ -z "$packages" ]; then
-    packages=$(python -c "import toml;file=open('pyproject.toml');print(','.join(x['include'] for x in toml.load(file)['tool']['poetry']['packages']));file.close()")
+    if [ "$package_manager" = "poetry" ]; then
+        # For Poetry projects - extract from [tool.poetry.packages]
+        packages=$(python -c "import toml;file=open('pyproject.toml');print(','.join(x['include'] for x in toml.load(file)['tool']['poetry']['packages']));file.close()")
+    elif [ "$package_manager" = "uv" ]; then
+        # For UV projects - extract from [tool.hatch.build.targets.wheel] or [tool.hatch.build.targets.sdist]
+        packages=$(python -c "
+import toml
+try:
+    with open('pyproject.toml') as f:
+        data = toml.load(f)
+    # Try wheel first, then sdist as fallback
+    if 'tool' in data and 'hatch' in data['tool'] and 'build' in data['tool']['hatch']:
+        targets = data['tool']['hatch']['build'].get('targets', {})
+        includes = targets.get('wheel', {}).get('include', []) or targets.get('sdist', {}).get('include', [])
+        print(','.join(includes))
+    else:
+        print('')
+except Exception:
+    print('')
+")
+    fi
 fi
+
 for package in ${packages//,/ }
 do
-    cp --recursive --no-preserve=ownership "${package}" /output/
+    # Check if package already exists in site-packages (to avoid duplication)
+    if [ -d "${site_packages_path}/${package}" ]; then
+        echo "Package '$package' already exists in site-packages, skipping copy"
+    else
+        echo "Copying package '$package' from source"
+        cp --recursive --no-preserve=ownership "${package}" /output/
+    fi
 done
+
 echo "all done!"

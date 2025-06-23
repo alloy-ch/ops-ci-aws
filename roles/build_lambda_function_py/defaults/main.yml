@@ -3,14 +3,22 @@
 lambda_runtime_docker_image_python: 'public.ecr.aws/lambda/python:3.10'
 update_non_pinned_deps: true
 lambda_layers_to_pin: []
-poetry_without:
+
+# Generic dependency group parameters (recommended)
+groups_without:
   - 'dev'
   - 'from_lambda_layers'
   - 'runtime'
   - 'types'
   - 'test'
   - 'tests'
-poetry_with: []
-poetry_only: []
+groups_with: []
+groups_only: []
+
+# Legacy Poetry parameters (deprecated but supported for backward compatibility)
+poetry_without: '{{ groups_without }}'
+poetry_with: '{{ groups_with }}'
+poetry_only: '{{ groups_only }}'
+
 strict: true
 packages: []
