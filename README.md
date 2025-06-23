@@ -18,6 +18,7 @@ This repository holds the shared Ansible roles, modules and tasks for projects t
 
 *  [build_lambda_function_ts](./roles/build_lambda_function_ts/README.md)
 *  [build_lambda_function_py](./roles/build_lambda_function_py/README.md)
+*  [build_lambda_function_py_uv](./roles/build_lambda_function_py_uv/README.md)
 *  [build_push_docker_image](./roles/build_push_docker_image/README.md)
 *  [create_acm_ssl_certificate](./roles/create_acm_ssl_certificate/README.md)
 *  [create_db_user_iam_auth](./roles/create_db_user_iam_auth/README.md)
