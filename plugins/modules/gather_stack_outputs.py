@@ -26,7 +26,7 @@ class CloudFormationServiceManager:
         self.module = module
 
         try:
-            region, ec2_url, aws_connect_kwargs = get_aws_connection_info(module, boto3=True)
+            region, ec2_url, aws_connect_kwargs = get_aws_connection_info(module)
             self.client = boto3_conn(module, conn_type='client', resource='cloudformation', region=region,
                                      endpoint=ec2_url, **aws_connect_kwargs)
             backoff_wrapper = AWSRetry.jittered_backoff(retries=10, delay=3, max_delay=30)
