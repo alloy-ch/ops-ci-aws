@@ -18,21 +18,40 @@
   failed_when: not r_stat.stat.exists
   no_log: true
 
-- name: 'check if poetry.lock exists'
+- name: 'detect package manager by checking for lock files'
   stat:
-    path: '{{ source_dir }}/poetry.lock'
-  register: r_stat
-  changed_when: False
-  failed_when: not r_stat.stat.exists
-  no_log: true
+    path: '{{ source_dir }}/{{ item }}'
+  register: lock_files
+  loop:
+    - 'uv.lock'
+    - 'poetry.lock'
 
-- name: 'check if the poetry runtime group is in pyproject.toml'
+- name: 'determine package manager'
+  set_fact:
+    package_manager: '{{ "uv" if lock_files.results[0].stat.exists else "poetry" if lock_files.results[1].stat.exists else "none" }}'
+
+- name: 'fail if no lock file found'
+  fail:
+    msg: 'Neither uv.lock nor poetry.lock found in {{ source_dir }}'
+  when: package_manager == "none"
+
+- name: 'check if the runtime group is in pyproject.toml (poetry)'
   shell: >
     cd "{{ source_dir }}"
     poetry show --only runtime
   register: r_poetry_show
   changed_when: False
   failed_when: r_poetry_show.rc != 0
+  when: package_manager == "poetry"
+
+- name: 'check if the runtime group exists in pyproject.toml (uv)'
+  shell: >
+    cd "{{ source_dir }}"
+    grep -q "^\[dependency-groups\.runtime\]" pyproject.toml || grep -q "^\[tool\.uv\.groups\.runtime\]" pyproject.toml
+  register: r_uv_runtime_check
+  changed_when: False
+  failed_when: r_uv_runtime_check.rc != 0
+  when: package_manager == "uv"
 
 - name: 'is pyproject.toml up-to-date?'
   when: lambda_layers_to_pin is defined and lambda_layers_to_pin | length > 0
@@ -48,13 +67,17 @@
         dest: '{{ workspace_path }}/tmp/update_project.sh'
         mode: 'u+x'
     - name: 'update pyproject.toml'
-      ansible.builtin.shell: '{{ workspace_path }}/tmp/update_project.sh "{{ update_non_pinned_deps | lower }}" "{{ lambda_layers_to_pin | join(" ") }}"'
+      ansible.builtin.shell: '{{ workspace_path }}/tmp/update_project.sh "{{ update_non_pinned_deps | lower }}" "{{ lambda_layers_to_pin | join(" ") }}" "{{ package_manager }}"'
       args:
         chdir: '{{ source_dir }}'
-    - name: 'fail if poetry.lock has changed in git (allow just comments to change)'
+    - name: 'fail if lock file has changed in git (allow just comments to change)'
       shell: |
         cd "{{ source_dir }}"
+        {% if package_manager == "poetry" %}
         git diff --exit-code -G'^[^#]' poetry.lock
+        {% elif package_manager == "uv" %}
+        git diff --exit-code -G'^[^#]' uv.lock
+        {% endif %}
       register: r_git_diff
       failed_when: r_git_diff.rc != 0
       changed_when: False
@@ -118,23 +141,35 @@
 
 - name: 'get pyproject.toml groups'
   shell: >
-    cat "{{ source_dir }}/pyproject.toml" | grep -E '^\[tool\.poetry\.group\..*$' | sed -E 's/^\[tool\.poetry\.group\.(.*)[.\].*$/\1/' | sort | uniq
-  register: r_poetry_groups
+    cd "{{ source_dir }}" && 
+    if [ "{{ package_manager }}" = "poetry" ]; then
+      cat pyproject.toml | grep -E '^\[tool\.poetry\.group\..*$' | sed -E 's/^\[tool\.poetry\.group\.(.*)[.\].*$/\1/' | sort | uniq
+    else
+      ( sed -n '/^\[dependency-groups\]/,/^\[/{//!p;}' pyproject.toml | grep -E '^[a-zA-Z][a-zA-Z0-9_-]*\s*=' | cut -d'=' -f1 | sed 's/[[:space:]]*$//' || true; 
+        sed -n '/^\[tool\.uv\.groups\]/,/^\[/{//!p;}' pyproject.toml | grep -E '^[a-zA-Z][a-zA-Z0-9_-]*\s*=' | cut -d'=' -f1 | sed 's/[[:space:]]*$//' || true ) |
+      sort | uniq
+    fi
+  register: r_available_groups
 
-- name: 'intersect the groups with poetry_without'
+# Set unified group parameters with backward compatibility for Poetry parameters
+- name: 'set unified groups_without parameter'
   set_fact:
-    poetry_without: '{{ poetry_without | default([]) | intersect(r_poetry_groups.stdout_lines) }}'
-  when: poetry_without is defined and poetry_without | length > 0
+    groups_without_resolved: '{{ poetry_without if poetry_without is defined else groups_without }}'
 
-- name: 'intersect the groups with poetry_with'
+- name: 'set unified groups_with parameter'
   set_fact:
-    poetry_with: '{{ poetry_with | default([]) | intersect(r_poetry_groups.stdout_lines) }}'
-  when: poetry_with is defined and poetry_with | length > 0
+    groups_with_resolved: '{{ poetry_with if poetry_with is defined else groups_with }}'
 
-- name: 'intersect the groups with poetry_only'
+- name: 'set unified groups_only parameter'
   set_fact:
-    poetry_only: '{{ poetry_only | default([]) | intersect(r_poetry_groups.stdout_lines) | union(["main"]) }}'
-  when: poetry_only is defined and poetry_only | length > 0
+    groups_only_resolved: '{{ poetry_only if poetry_only is defined else groups_only }}'
+
+# Validate that specified groups exist in pyproject.toml
+- name: 'intersect groups with available groups in pyproject.toml'
+  set_fact:
+    groups_without_final: '{{ groups_without_resolved | intersect(r_available_groups.stdout_lines) }}'
+    groups_with_final: '{{ groups_with_resolved | intersect(r_available_groups.stdout_lines) }}'
+    groups_only_final: '{{ groups_only_resolved | intersect(r_available_groups.stdout_lines) }}'
 
 - name: 'build the app inside lambda runtime container'
   command: >
@@ -145,9 +180,9 @@
       {{ lambda_runtime_docker_image_python }}
       {% if strict %}--strict{% endif %}
       {% if packages is defined and packages | length > 0 %}--packages {{ packages | join(',') }}{% endif %}
-      {% if poetry_only is defined and poetry_only | length > 0 %}--only {{ poetry_only | join(',') }}{% endif %}
-      {% if poetry_without is defined and poetry_without | length > 0 %}--without {{ poetry_without | join(',') }}{% endif %}
-      {% if poetry_with is defined and poetry_with | length > 0 %}--with {{ poetry_with | join(',') }}{% endif %}
+      {% if groups_only_final is defined and groups_only_final | length > 0 %}--only {{ groups_only_final | join(',') }}{% endif %}
+      {% if groups_without_final is defined and groups_without_final | length > 0 %}--without {{ groups_without_final | join(',') }}{% endif %}
+      {% if groups_with_final is defined and groups_with_final | length > 0 %}--with {{ groups_with_final | join(',') }}{% endif %}
 
 - name: 'set output'
   set_fact:
