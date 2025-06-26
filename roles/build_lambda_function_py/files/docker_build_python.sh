@@ -126,16 +126,27 @@ if [ "$package_manager" = "uv" ]; then
     
     echo "Installing dependencies with uv"
     # construct the command
-    cmd="uv sync --no-dev"
+    cmd="uv sync --no-dev --no-install-project"
     if [ -n "$only" ]; then
-        cmd="$cmd --only-group $only"
+        # split by comma an loop through each group
+        IFS=',' read -ra groups <<< "$only"
+        for group in "${groups[@]}"; do
+            cmd="$cmd --only-group $group"
+        done
     fi
     if [ -n "$with" ]; then
-        cmd="$cmd --group $with"
+        # split by comma an loop through each group
+        IFS=',' read -ra groups <<< "$with"
+        for group in "${groups[@]}"; do
+            cmd="$cmd --group $group"
+        done
     fi
     if [ -n "$without" ]; then
-        # UV doesn't have a direct --without equivalent, but we handle this in the Ansible task
-        echo "Warning: --without is handled at the task level for UV"
+        # split by comma an loop through each group
+        IFS=',' read -ra groups <<< "$without"
+        for group in "${groups[@]}"; do
+            cmd="$cmd --no-group $group"
+        done
     fi
 else
     echo "Install poetry"
