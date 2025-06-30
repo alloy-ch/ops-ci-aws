@@ -143,7 +143,7 @@
   shell: >
     cd "{{ source_dir }}" && 
     if [ "{{ package_manager }}" = "poetry" ]; then
-      cat pyproject.toml | grep -E '^\[tool\.poetry\.group\..*$' | sed -E 's/^\[tool\.poetry\.group\.(.*)[.\].*$/\1/' | sort | uniq
+      (echo "main"; cat pyproject.toml | grep -E '^\[tool\.poetry\.group\..*$' | sed -E 's/^\[tool\.poetry\.group\.(.*)[.\].*$/\1/') | sort | uniq
     else
       ( sed -n '/^\[dependency-groups\]/,/^\[/{//!p;}' pyproject.toml | grep -E '^[a-zA-Z][a-zA-Z0-9_-]*\s*=' | cut -d'=' -f1 | sed 's/[[:space:]]*$//' || true; 
         sed -n '/^\[tool\.uv\.groups\]/,/^\[/{//!p;}' pyproject.toml | grep -E '^[a-zA-Z][a-zA-Z0-9_-]*\s*=' | cut -d'=' -f1 | sed 's/[[:space:]]*$//' || true ) |
