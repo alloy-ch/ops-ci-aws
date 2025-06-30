@@ -174,10 +174,9 @@ eval "$cmd"
 # Extract dependencies to remove based on package manager
 site_packages_path=".venv/lib/python*/site-packages"
 if [ "$package_manager" = "uv" ]; then
-    # For UV, get dependencies from group sections in pyproject.toml
-    lambda_packages=($(sed -n '/\[dependency-groups\.from_lambda_layers\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/"//g' -e 's/==.*//'))
+    lambda_packages=($(uv export --format requirements.txt --only-group from-lambda-layers --no-annotate --no-header --no-hashes | sed -e 's/==.*//'))
     if [ "$strict" = true ]; then
-        runtime_packages=($(sed -n '/\[dependency-groups\.runtime\]/,/^\[/{//!p;}' pyproject.toml | sed -e 's/"//g' -e 's/==.*//'))
+        runtime_packages=($(uv export --format requirements.txt --only-group runtime --no-annotate --no-header --no-hashes | sed -e 's/==.*//'))
     else
         runtime_packages=()
     fi
