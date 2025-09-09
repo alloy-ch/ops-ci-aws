@@ -8,6 +8,14 @@
   set_fact:
     ecr_stack_name: '{{ ecr_repository_name }}-ecr'
 
+- name: "[{{ ecr_repository_name }}] set ECR role parameter enable_lifecycle_rules"
+  set_fact:
+    enable_lifecycle_rules: "{{ (enable_lifecycle_rules | default(true) | string | lower) not in ['false'] }}"
+
+- name: '[{{ ecr_repository_name }}] ECR lifecycle rules are enabled'
+  debug:
+    var: enable_lifecycle_rules
+
 - name: '[{{ ecr_repository_name }}] deploy the ECR stack'
   include_role:
     name: 'run_cloudformation'
