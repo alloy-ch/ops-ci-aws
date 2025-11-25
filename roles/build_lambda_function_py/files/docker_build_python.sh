@@ -3,7 +3,7 @@
 set -e
 
 # Install git and ssh clients for private repository access
-yum install -y git openssh-clients > /dev/null 2>&1
+yum install -y git openssh-clients > /dev/null 2>&1 || { echo "Failed to install git and openssh-clients"; exit 1; }
 
 strict=false
 only=""
