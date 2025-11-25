@@ -197,7 +197,7 @@
       changed_when: False
     
     - name: 'add github to known_hosts'
-      shell: 'ssh-keyscan github.com > {{ intermediate_dir }}/.ssh/known_hosts && chmod 644 {{ intermediate_dir }}/.ssh/known_hosts'
+      shell: 'ssh-keyscan github.com > "{{ intermediate_dir }}/.ssh/known_hosts" && chmod 644 "{{ intermediate_dir }}/.ssh/known_hosts"'
       changed_when: False
     
     - name: 'create SSH config'
