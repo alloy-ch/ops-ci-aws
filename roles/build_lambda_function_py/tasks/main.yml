@@ -207,7 +207,7 @@
               HostName github.com
               User git
               IdentityFile /root/.ssh/id_rsa
-              StrictHostKeyChecking no
+              StrictHostKeyChecking accept-new
               UserKnownHostsFile /root/.ssh/known_hosts
         dest: '{{ intermediate_dir }}/.ssh/config'
         mode: '0600'
