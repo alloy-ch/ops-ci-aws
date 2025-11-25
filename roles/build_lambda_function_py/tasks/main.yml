@@ -212,7 +212,7 @@
         dest: '{{ intermediate_dir }}/.ssh/config'
         mode: '0600'
       changed_when: False
-
+  no_log: True
 - name: 'build the app inside lambda runtime container'
   command: >
     docker run --rm
