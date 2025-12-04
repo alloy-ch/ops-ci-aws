@@ -127,7 +127,7 @@
       - '--exclude=.venv'
       - '--exclude=venv'
       - '--exclude=.mypy_cache'
-  no_log: '{{ ansible_verbosity < 3 }}'
+  no_log: True
 
 - name: 'place the shell script to be executed inside the container'
   copy:
@@ -171,11 +171,54 @@
     groups_with_final: '{{ groups_with_resolved | intersect(r_available_groups.stdout_lines) }}'
     groups_only_final: '{{ groups_only_resolved | intersect(r_available_groups.stdout_lines) }}'
 
+- name: 'setup SSH credentials in intermediate dir if provided'
+  when: ssh_private_key is defined
+  block:
+    - name: 'create .ssh directory in intermediate dir'
+      file:
+        path: '{{ intermediate_dir }}/.ssh'
+        state: 'directory'
+        mode: '0700'
+      changed_when: False
+    
+    - name: 'write SSH private key'
+      copy:
+        content: '{{ ssh_private_key }}'
+        dest: '{{ intermediate_dir }}/.ssh/id_rsa'
+        mode: '0600'
+      changed_when: False
+    
+    - name: 'ensure SSH key has correct line endings'
+      shell: |
+        # Remove any carriage returns and ensure proper line endings
+        sed -i 's/\r$//' "{{ intermediate_dir }}/.ssh/id_rsa"
+        # Ensure the file ends with a newline
+        [ -n "$(tail -c1 "{{ intermediate_dir }}/.ssh/id_rsa")" ] && echo >> "{{ intermediate_dir }}/.ssh/id_rsa"
+      changed_when: False
+    
+    - name: 'add github to known_hosts'
+      shell: 'ssh-keyscan github.com > "{{ intermediate_dir }}/.ssh/known_hosts" && chmod 644 "{{ intermediate_dir }}/.ssh/known_hosts"'
+      changed_when: False
+    
+    - name: 'create SSH config'
+      copy:
+        content: |
+          Host github.com
+              HostName github.com
+              User git
+              IdentityFile /root/.ssh/id_rsa
+              StrictHostKeyChecking accept-new
+              UserKnownHostsFile /root/.ssh/known_hosts
+        dest: '{{ intermediate_dir }}/.ssh/config'
+        mode: '0600'
+      changed_when: False
+  no_log: True
 - name: 'build the app inside lambda runtime container'
   command: >
     docker run --rm
       -v "{{ output_dir }}:/output"
       -v "{{ intermediate_dir }}:/workspace"
+      {% if ssh_private_key is defined %}-v "{{ intermediate_dir }}/.ssh:/root/.ssh"{% endif %}
       --entrypoint "/workspace/docker_build_python.sh"
       {{ lambda_runtime_docker_image_python }}
       {% if strict %}--strict{% endif %}
