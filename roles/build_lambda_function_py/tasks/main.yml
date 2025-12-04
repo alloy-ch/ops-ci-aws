@@ -191,9 +191,9 @@
     - name: 'ensure SSH key has correct line endings'
       shell: |
         # Remove any carriage returns and ensure proper line endings
-        sed -i 's/\r$//' {{ intermediate_dir }}/.ssh/id_rsa
+        sed -i 's/\r$//' "{{ intermediate_dir }}/.ssh/id_rsa"
         # Ensure the file ends with a newline
-        [ -n "$(tail -c1 {{ intermediate_dir }}/.ssh/id_rsa)" ] && echo >> {{ intermediate_dir }}/.ssh/id_rsa
+        [ -n "$(tail -c1 "{{ intermediate_dir }}/.ssh/id_rsa")" ] && echo >> "{{ intermediate_dir }}/.ssh/id_rsa"
       changed_when: False
     
     - name: 'add github to known_hosts'
