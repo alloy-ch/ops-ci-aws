@@ -49,7 +49,7 @@ Before a repository turns it on, check two things in each of its Dockerfiles:
 1. **No secrets in layers.** With `mode=max`, every builder-stage layer lands in the bucket. Tokens and keys must reach the build through `RUN --mount=type=secret` or `RUN --mount=type=ssh`, never through `ARG` (build args are also recorded in the build metadata) or a file written in a `RUN` step.
 2. **Dependencies before the source.** Copy the lock files and install the dependencies (`uv sync --no-install-project`, `npm ci`) before copying the source. Otherwise every code change invalidates the dependency layer, and the cache saves little.
 
-To limit the cost to where builds are frequent, turn it on for dev only:
+Turn it on where the repository builds images often: dev, and stg if it builds images there often too. Never turn it on for prod. Prod builds are rare, and a release image should not reuse layers from earlier builds, e.g. an unpinned `apt-get install` that only re-runs when its inputs change.
 
 ```ansible
 - include_role:
@@ -57,7 +57,7 @@ To limit the cost to where builds are frequent, turn it on for dev only:
   vars:
     ecr_repository_name: '{{ env }}-{{ project_id }}-estimations-api'
     adhoc_deploy: true
-    build_cache: "{{ env == 'dev' }}"
+    build_cache: "{{ env == 'dev' }}"         # or "{{ env != 'prod' }}" when stg builds images often too
 ```
 
 ## Examples
