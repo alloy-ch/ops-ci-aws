@@ -42,6 +42,7 @@ With `build_cache: true`, `docker buildx build` imports its layer cache from S3 
 - **Retention:** the bucket needs a lifecycle rule that expires the prefix after a few days. Each export refreshes the timestamp of the layers it still uses (`touch_refresh=24h`), so the rule only removes layers that no recent build has used.
 - **Failures:** a failed export never fails the build (`ignore-error=true`). A missing cache, e.g. on an image's first build, only makes the build slower.
 - **Credentials:** buildx passes the caller's AWS credentials (SSO profile or CodeBuild role) to the builder. The caller needs read and write access to the prefix and the bucket's KMS key.
+- **Builder:** the S3 cache needs BuildKit v0.11 or later in the `rcplus` builder. The role reuses an existing builder, so if a laptop has one from before 2023 (`docker buildx inspect rcplus` shows the version), remove it with `docker buildx rm rcplus` and the role recreates it.
 
 Before a repository turns it on, check two things in each of its Dockerfiles:
 

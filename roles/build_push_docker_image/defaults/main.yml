@@ -8,7 +8,7 @@ adhoc_deploy: false
 extra_buildx_build_args: ''
 build_cache: false
 build_cache_bucket: ''
-build_cache_prefix: 'buildkit-cache/'
+build_cache_prefix: 'buildkit-cache/'  # must match the lifecycle rule of the infrastructure bucket (basis stack)
 
 ssmkey_nexus_username: '/ops-ci/nexus-username'
 ssmkey_nexus_password: '/ops-ci/nexus-password'
