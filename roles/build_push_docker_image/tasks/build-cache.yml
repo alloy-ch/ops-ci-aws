@@ -1,0 +1,36 @@
+# Opt-in BuildKit layer cache in S3 (role parameter `build_cache`).
+#
+# The cache of every image lives in the infrastructure bucket under `build_cache_prefix`, one manifest per image
+# (`name` = ECR repository name) and the blobs shared across images, so common base layers are stored once. The
+# bucket's lifecycle rule expires the prefix, and `touch_refresh` refreshes every blob a build still uses, so that
+# rule only removes blobs that no recent build needed.
+#
+# NOTE: with `mode=max`, layers of the builder stages are exported too. Secrets must reach the build through
+# `RUN --mount=type=secret` or `--mount=type=ssh`, never through `ARG` or a file written in a `RUN` step, or they end
+# up in the bucket. See the README.
+#
+# NOTE: buildx passes the caller's AWS credentials (SSO profile, CodeBuild role) to the builder for the S3 cache.
+---
+
+- name: '[{{ ecr_repository_name }}] get the infrastructure S3 bucket for the build cache'
+  when: build_cache_bucket == ''
+  block:
+    - name: '[{{ ecr_repository_name }}] get the CloudFormation stack outputs'
+      ringier.aws_cicd.gather_stack_outputs:
+        region: '{{ aws_region }}'
+        stack_name: '{{ env }}-{{ project_id }}-basis'
+      register: r_basis_stack
+      no_log: true
+
+    - name: '[{{ ecr_repository_name }}] take the infrastructure S3 bucket'
+      set_fact:
+        build_cache_bucket: '{{ r_basis_stack.outputs.InfrastructureCodeS3Bucket }}'
+
+- name: '[{{ ecr_repository_name }}] assemble the build cache parameters'
+  vars:
+    cache_ref: 'type=s3,region={{ aws_region }},bucket={{ build_cache_bucket }},prefix={{ build_cache_prefix }},name={{ ecr_repository_name }}'
+  set_fact:
+    buildx_cache_args: '--cache-from {{ cache_ref }} --cache-to {{ cache_ref }},mode=max,touch_refresh=24h,ignore-error=true'
+
+- debug:
+    msg: 'Build cache: s3://{{ build_cache_bucket }}/{{ build_cache_prefix }}manifests/{{ ecr_repository_name }}'

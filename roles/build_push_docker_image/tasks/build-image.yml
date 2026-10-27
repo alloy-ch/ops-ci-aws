@@ -93,6 +93,13 @@
   shell: |
     docker run --privileged --rm docker.rcplus.io/tonistiigi/binfmt --install arm64,amd64
 
+- name: '[{{ ecr_repository_name }}] clear existing buildx_cache_args'
+  set_fact:
+    buildx_cache_args: ''
+
+- include_tasks: 'build-cache.yml'
+  when: build_cache | bool
+
 - name: '[{{ ecr_repository_name }}] create a temp file for the build metadata'
   ansible.builtin.tempfile:
     state: file
@@ -105,7 +112,7 @@
       --allow security.insecure \
       --push \
       --platform {{ buildx_platform_param }} \
-      --builder rcplus {{ extra_buildx_build_args }} \
+      --builder rcplus {{ extra_buildx_build_args }} {{ buildx_cache_args }} \
       --tag {{ docker_image_full_name_and_tag }} \
       --tag {{ docker_image_full_name_with_latest_tag }} \
       --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }} \
