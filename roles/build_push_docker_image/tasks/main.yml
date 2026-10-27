@@ -4,6 +4,10 @@
   fail: msg="missing var 'ecr_repository_name'"
   when: ecr_repository_name is not defined or ecr_repository_name == ''
 
+- name: '[{{ ecr_repository_name }}] reset the digest of a previous application of this role'
+  set_fact:
+    docker_image_digest: ''
+
 - include_tasks: 'setup-registry.yml'
 
 - include_tasks: 'prebuilt-image.yml'

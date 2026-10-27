@@ -121,14 +121,19 @@
     src: '{{ r_buildx_metadata_file.path }}'
   register: r_buildx_metadata
 
+- name: '[{{ ecr_repository_name }}] extract the pushed image digest'
+  set_fact:
+    docker_image_digest: "{{ (r_buildx_metadata.content | b64decode | from_json).get('containerimage.digest', '') }}"
+
+- name: '[{{ ecr_repository_name }}] check the pushed image digest'
+  assert:
+    that: docker_image_digest is match('^sha256:[0-9a-f]{64}$')
+    fail_msg: 'no image digest in the build metadata at {{ r_buildx_metadata_file.path }}'
+
 - name: '[{{ ecr_repository_name }}] remove the build metadata file'
   ansible.builtin.file:
     path: '{{ r_buildx_metadata_file.path }}'
     state: absent
-
-- name: '[{{ ecr_repository_name }}] extract the pushed image digest'
-  set_fact:
-    docker_image_digest: "{{ (r_buildx_metadata.content | b64decode | from_json)['containerimage.digest'] }}"
 
 - name: '[{{ ecr_repository_name }}] modify the output in case of adhoc_deploy'
   when: adhoc_deploy
