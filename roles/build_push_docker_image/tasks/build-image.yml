@@ -93,6 +93,12 @@
   shell: |
     docker run --privileged --rm docker.rcplus.io/tonistiigi/binfmt --install arm64,amd64
 
+- name: '[{{ ecr_repository_name }}] create a temp file for the build metadata'
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .json
+  register: r_buildx_metadata_file
+
 - name: '[{{ ecr_repository_name }}] build the image'
   shell: |
     docker buildx build \
@@ -104,15 +110,33 @@
       --tag {{ docker_image_full_name_with_latest_tag }} \
       --build-arg NPMRC_ENCODED="$NPMRC_ENCODED" {{ docker_build_args_str }} \
       --provenance=false \
+      --metadata-file {{ r_buildx_metadata_file.path }} \
       {{ code_path }}
   no_log: '{{ ansible_verbosity < 3 }}'
+
+# NOTE: the digest comes from the build itself, not from inspecting the `latest` tag after the push. Right after a push,
+# ECR may still serve the previous manifest for the tag, and the deployment would then silently keep the old image.
+- name: '[{{ ecr_repository_name }}] read the build metadata'
+  ansible.builtin.slurp:
+    src: '{{ r_buildx_metadata_file.path }}'
+  register: r_buildx_metadata
+
+- name: '[{{ ecr_repository_name }}] remove the build metadata file'
+  ansible.builtin.file:
+    path: '{{ r_buildx_metadata_file.path }}'
+    state: absent
+
+- name: '[{{ ecr_repository_name }}] extract the pushed image digest'
+  set_fact:
+    docker_image_digest: "{{ (r_buildx_metadata.content | b64decode | from_json)['containerimage.digest'] }}"
 
 - name: '[{{ ecr_repository_name }}] modify the output in case of adhoc_deploy'
   when: adhoc_deploy
   no_log: '{{ ansible_verbosity < 3 }}'
   block:
     - name: '[{{ ecr_repository_name }}] inspect the manifest'
-      shell: docker manifest inspect --verbose {{ docker_image_full_name_with_latest_tag }}
+      # for a multi-platform image the digest points to the manifest list, whose entries give the per-platform digests
+      shell: docker manifest inspect --verbose {{ ecr_registry_uri }}@{{ docker_image_digest }}
       register: r_manifest
     - name: '[{{ ecr_repository_name }}] parse the inspection result'
       set_fact:
