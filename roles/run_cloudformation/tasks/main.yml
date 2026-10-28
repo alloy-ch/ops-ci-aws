@@ -87,13 +87,6 @@
       --no-fail-on-empty-changeset
   register: r_deploy_cf
 
-# publish the outcome for a deploy summary (shown with ANSIBLE_SHOW_CUSTOM_STATS=true)
-- name: '[{{ stack_name }}] report the stack outcome'
-  when: not async_deploy
-  ansible.builtin.set_stats:
-    data:
-      stacks: "{{ {stack_name: ('unchanged' if 'No changes to deploy' in r_deploy_cf.stdout else 'updated')} }}"
-
 # deploy the non-blocking way
 - name: "[{{ stack_name }}] apply stack updates"
   when: async_deploy
@@ -120,8 +113,11 @@
   poll: 0
   register: deploy_cf
 
+# publish the outcome for a deploy summary (shown with ANSIBLE_SHOW_CUSTOM_STATS=true); the result of an async
+# deploy is not known yet, and in check mode the deploy is skipped
 - name: '[{{ stack_name }}] report the stack outcome'
-  when: async_deploy
   ansible.builtin.set_stats:
     data:
-      stacks: "{{ {stack_name: 'started'} }}"
+      stacks: "{{ {stack_name: ('started' if async_deploy else
+                   'skipped' if r_deploy_cf is skipped else
+                   'unchanged' if 'No changes to deploy' in r_deploy_cf.stdout | default('') else 'updated')} }}"
