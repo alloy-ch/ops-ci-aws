@@ -85,6 +85,14 @@
         {{ '' if skip_version_tag else 'GitCommit="' + git_info.commit_hash + '"' }}
         {{ '' if skip_version_tag else 'GitPendingChanges="' + git_info.has_pending_changes | string + '"' }}
       --no-fail-on-empty-changeset
+  register: r_deploy_cf
+
+# publish the outcome for a deploy summary (shown with ANSIBLE_SHOW_CUSTOM_STATS=true)
+- name: '[{{ stack_name }}] report the stack outcome'
+  when: not async_deploy
+  ansible.builtin.set_stats:
+    data:
+      stacks: "{{ {stack_name: ('unchanged' if 'No changes to deploy' in r_deploy_cf.stdout else 'updated')} }}"
 
 # deploy the non-blocking way
 - name: "[{{ stack_name }}] apply stack updates"
@@ -111,3 +119,9 @@
   async: "{{ async_duration }}"
   poll: 0
   register: deploy_cf
+
+- name: '[{{ stack_name }}] report the stack outcome'
+  when: async_deploy
+  ansible.builtin.set_stats:
+    data:
+      stacks: "{{ {stack_name: 'started'} }}"

@@ -45,7 +45,7 @@ These three `Git*` tags indicates from which code line the stack was deployed fr
 
 ## Outputs
 
-None
+The role publishes the stack's outcome with `ansible.builtin.set_stats`, under `stacks.<stack_name>`: `updated`, `unchanged` (no changes to deploy) or `started` (with `async_deploy`). `ansible-playbook` prints all stats as one JSON line at the end of the run when `ANSIBLE_SHOW_CUSTOM_STATS=true`; `ci-deploy.sh` turns that into a deploy summary.
 
 ## Examples
 
