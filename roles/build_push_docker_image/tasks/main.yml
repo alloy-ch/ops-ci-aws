@@ -19,3 +19,9 @@
 - name: '[{{ ecr_repository_name }}] show the result'
   debug:
     msg: "Docker image is published as '{{ docker_image_full_name_and_tag }}'"
+
+# publish the result for a deploy summary (shown with ANSIBLE_SHOW_CUSTOM_STATS=true)
+- name: '[{{ ecr_repository_name }}] report the published image'
+  ansible.builtin.set_stats:
+    data:
+      images: "{{ {ecr_repository_name: {'image': docker_image_full_name_and_tag, 'digest': docker_image_digest}} }}"

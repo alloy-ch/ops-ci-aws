@@ -34,6 +34,8 @@ This Ansible role:
 | `docker_image_digest`                   | str  | Empty when `prebuilt_image_supplied` is truthy. Otherwise the digest of the pushed image as reported by the build, e.g. `sha256:6d2b…`. For a multi-arch image, this is the digest of the manifest list.                                                                                                                       |
 | `docker_image_full_name_and_tag_<arch>` | str  | In case `adhoc_deploy` is truthy, these variables will be set to the SHA256 hash of the specific architecture. e.g. `docker_image_full_name_and_tag_arm64` = `180132115366.dkr.ecr.eu-central-1.amazonaws.com/dev-alloy-vectorizer-grafana-metrics-update@sha256:6d2b97ccacb063b2cf098a4c1932d5112d8742d6eb04aa5e26f7ce2c1b9e2078` |
 
+The role also publishes the image with `ansible.builtin.set_stats`, under `images.<ecr_repository_name>` (`image` and `digest`), for a deploy summary (`ANSIBLE_SHOW_CUSTOM_STATS=true`). `image` is `docker_image_full_name_and_tag` and `digest` is `docker_image_digest`, so for a multi-arch `adhoc_deploy` build, `image` points at the arm64 image while `digest` is the manifest list's.
+
 ## Build cache
 
 With `build_cache: true`, `docker buildx build` imports its layer cache from S3 before the build and exports it after (`mode=max`, so the layers of builder stages are cached too). A fresh builder, such as every CodeBuild run, then skips the steps whose inputs have not changed.
