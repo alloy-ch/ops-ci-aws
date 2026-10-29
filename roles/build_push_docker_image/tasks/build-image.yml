@@ -141,8 +141,12 @@
   block:
     - name: '[{{ ecr_repository_name }}] inspect the manifest'
       # for a multi-platform image the digest points to the manifest list, whose entries give the per-platform digests
+      # retried in case the registry does not serve the manifest by digest right after the push
       shell: docker manifest inspect --verbose {{ ecr_registry_uri }}@{{ docker_image_digest }}
       register: r_manifest
+      until: r_manifest.rc == 0
+      retries: 5
+      delay: 3
     - name: '[{{ ecr_repository_name }}] parse the inspection result'
       set_fact:
         manifest: '{{ r_manifest.stdout | from_json }}'
