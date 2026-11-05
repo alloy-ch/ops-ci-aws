@@ -6,3 +6,5 @@ infrastructure_bucket_override: ''
 skip_version_tag: false
 async_deploy: false
 async_duration: 300
+# the branches deployed as they are (release lines): a build of any other ref is tagged as a branch build
+release_branches: ['develop', 'main']

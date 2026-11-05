@@ -23,7 +23,8 @@ This Ansible role:
 
 `git_info` is a `dict` with the following key-pairs:
 *  `repo_name`: name of the repository, without Github organization prefix
-*  `branch_name`: current git branch
+*  `branch_name`: current git branch (`HEAD` when the checkout is detached, e.g. a tag build)
+*  `tags_at_head`: the git tags pointing at the current commit (list, often empty)
 *  `commit_hash`: the full (40-chars) hash of the current HEAD
 *  `commit_hash_short`: the beginning 7-chars of the hash
 *  `has_pending_changes`: truthy if the current work directory is dirty
