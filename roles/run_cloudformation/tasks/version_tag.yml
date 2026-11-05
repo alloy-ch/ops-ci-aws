@@ -1,0 +1,27 @@
+---
+# The `Version` tag of the stack:
+#   - `version_tag_override` when given (overrules `skip_version_tag`);
+#   - nothing when `skip_version_tag`;
+#   - `v<project_version>` for a build of a release line (`release_branches`) or of the version tag itself;
+#   - `v<project_version>+<branch>.<short commit>` for a build of any other ref (a feature branch, a detached
+#     commit), so that the tag says it is not the released artefact. Semver build metadata, e.g. `v1.4.0+fix-x.3f2a1c9`.
+
+- name: '[{{ stack_name }}] work out which code line is deployed'
+  set_fact:
+    _branch: "{{ git_info.branch_name | default('') }}"
+    _release_line: >-
+      {{ (git_info.branch_name | default('')) == ''
+         or (git_info.branch_name | default('')) in release_branches
+         or ('v' ~ project_version) in (git_info.tags_at_head | default([])) }}
+    _branch_label: >-
+      {{ ('detached' if (git_info.branch_name | default('')) == 'HEAD' else (git_info.branch_name | default('')))
+         | regex_replace('[^A-Za-z0-9.-]', '-') }}
+
+- name: '[{{ stack_name }}] work out the Version tag'
+  set_fact:
+    version_tag: >-
+      {{ version_tag_override if (version_tag_override | default('')) != ''
+         else ('' if skip_version_tag
+         else ('v' ~ project_version if (_release_line | bool)
+         else 'v' ~ project_version ~ '+' ~ _branch_label ~ '.' ~ (git_info.commit_hash_short | default(''))))
+      }}
