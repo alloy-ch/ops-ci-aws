@@ -4,11 +4,14 @@
 #   - nothing when `skip_version_tag`;
 #   - `v<project_version>` for a build of a release line (`release_branches`) or of the version tag itself;
 #   - `v<project_version>+<branch>.<short commit>` for a build of any other ref (a feature branch, a detached
-#     commit), so that the tag says it is not the released artefact. Semver build metadata, e.g. `v1.4.0+fix-x.3f2a1c9`.
+#     commit), so that the tag says it is not the released artefact. Semver build metadata, e.g. `v1.4.0+fix-x.3f2a1c9`;
+#   - the same with `.dirty` appended when the working tree had uncommitted changes (a laptop deploy), whatever the
+#     ref: `v1.4.0+main.3f2a1c9.dirty`.
 
 - name: '[{{ stack_name }}] work out which code line is deployed'
   set_fact:
     _branch: "{{ git_info.branch_name | default('') }}"
+    _dirty: "{{ git_info.has_pending_changes | default(false) | bool }}"
     _release_line: >-
       {{ (git_info.branch_name | default('')) == ''
          or (git_info.branch_name | default('')) in release_branches
@@ -22,6 +25,7 @@
     version_tag: >-
       {{ version_tag_override if (version_tag_override | default('')) != ''
          else ('' if skip_version_tag
-         else ('v' ~ project_version if (_release_line | bool)
-         else 'v' ~ project_version ~ '+' ~ _branch_label ~ '.' ~ (git_info.commit_hash_short | default(''))))
+         else ('v' ~ project_version if (_release_line | bool) and not (_dirty | bool)
+         else 'v' ~ project_version ~ '+' ~ _branch_label ~ '.' ~ (git_info.commit_hash_short | default(''))
+              ~ ('.dirty' if (_dirty | bool) else '')))
       }}
