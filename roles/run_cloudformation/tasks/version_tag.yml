@@ -16,9 +16,10 @@
       {{ (git_info.branch_name | default('')) == ''
          or (git_info.branch_name | default('')) in release_branches
          or ('v' ~ project_version) in (git_info.tags_at_head | default([])) }}
+    # the branch label is capped: tag values may have 256 characters, git branch names may be longer than that
     _branch_label: >-
-      {{ ('detached' if (git_info.branch_name | default('')) == 'HEAD' else (git_info.branch_name | default('')))
-         | regex_replace('[^A-Za-z0-9.-]', '-') }}
+      {{ (('detached' if (git_info.branch_name | default('')) == 'HEAD' else (git_info.branch_name | default('')))
+         | regex_replace('[^A-Za-z0-9.-]', '-'))[:64] }}
 
 - name: '[{{ stack_name }}] work out the Version tag'
   set_fact:

@@ -41,7 +41,7 @@ Regarding `version_tag_override`, for the override value, if the semver is used,
 
 **Branch builds.** A stack deployed from a ref that is not one of `release_branches` and not the commit of the version
 tag `v<version>` gets `Version` tagged `v<version>+<branch>.<short commit>` (semver build metadata, e.g.
-`v1.4.0+fix-login.3f2a1c9`; characters other than `[A-Za-z0-9.-]` in the branch name become `-`, a detached checkout
+`v1.4.0+fix-login.3f2a1c9`; characters other than `[A-Za-z0-9.-]` in the branch name become `-` and the branch part is cut at 64 characters, a detached checkout
 reads `detached`). A deploy from a working tree with uncommitted changes gets `.dirty` appended whatever the ref,
 e.g. `v1.4.0+main.3f2a1c9.dirty`. Clean builds of the release lines and of the version tag keep `v<version>`. So the tag tells apart the
 released artefact from a feature-branch deployment that happens to carry the same version number, which `GitBranch`
