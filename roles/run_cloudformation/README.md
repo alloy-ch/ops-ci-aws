@@ -27,6 +27,7 @@ Uploading the template to S3 before applying it removes the size limit at 51'200
 | `stack_name`                     |    Yes    | str  | -                    | Name of the CloudFormation stack to be created.                                                                                                                                                  |
 | `skip_version_tag`               |    No     | bool | false                | When true, the CloudFormation stack will not have `Version` tag.                                                                                                                                 |
 | `version_tag_override`           |    No     | str  | -                    | When specified, the CloudFormation stack will have `Version` tagged with the specified value instead of the default `{{ version }}`. This parameter overrules `skip_version_tag`.                |
+| `release_branches`               |    No     | list | `['develop', 'main']` | The branches deployed as they are. A build of any other ref (a feature branch, a detached commit that is not the version tag) gets `Version` tagged `v<version>+<branch>.<short commit>`, see below.                   |
 | `repo_tag_override`              |    No     | str  | -                    | When specified, the CloudFormation stack will have `Repository` tagged with the specified value instead of the default `{{ git_info.repo_name }}`.                                               |
 | `async_deploy`                     |    No    | bool  | false                    | By setting this value to true, Ansible starts the task and immediately moves on to the next task without waiting for a result, see https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_async.html#run-tasks-concurrently-poll-0                                                                                                                           |
 | `async_duration`                     |    No    | number  | 300                    | Only relevant in case `async_deploy` has been enabled. Seconds to wait before timing out the execution of the async deployment.
@@ -38,6 +39,14 @@ We need it to keep some tags stable instead of always inheriting the tags set fr
 
 Regarding `version_tag_override`, for the override value, if the semver is used, do not forget the prefix `v`. e.g. to tag `1.5.5` please specify `v1.5.5`
 
+**Branch builds.** A stack deployed from a ref that is not one of `release_branches` and not the commit of the version
+tag `v<version>` gets `Version` tagged `v<version>+<branch>.<short commit>` (semver build metadata, e.g.
+`v1.4.0+fix-login.3f2a1c9`; characters other than `[A-Za-z0-9.-]` in the branch name become `-` and the branch part is cut at 64 characters, a detached checkout
+reads `detached`). A deploy from a working tree with uncommitted changes gets `.dirty` appended whatever the ref,
+e.g. `v1.4.0+main.3f2a1c9.dirty`. Clean builds of the release lines and of the version tag keep `v<version>`. So the tag tells apart the
+released artefact from a feature-branch deployment that happens to carry the same version number, which `GitBranch`
+and `GitCommit` alone only tell to someone who looks them up.
+
 When `skip_version_tag` is set to true, the Cloudformation stack will not be tagged with `Version`. If it is false, the Cloudformation
 stack has tag `Version`, plus the additional ones including `GitBranch`, `GitCommit`, and `GitPendingChanges`.
 These three `Git*` tags indicates from which code line the stack was deployed from. 
@@ -45,7 +54,7 @@ These three `Git*` tags indicates from which code line the stack was deployed fr
 
 ## Outputs
 
-None
+The role publishes the stack's outcome with `ansible.builtin.set_stats`, under `stacks.<stack_name>`: `updated`, `unchanged` (no changes to deploy), `started` (with `async_deploy`) or `skipped` (check mode). `ansible-playbook` prints all stats as one JSON line at the end of the run when `ANSIBLE_SHOW_CUSTOM_STATS=true`; `ci-deploy.sh` turns that into a deploy summary.
 
 ## Examples
 

@@ -90,6 +90,7 @@ To keep the dependencies installed in the lambda function minimal, the following
 | `poetry_only`                        |    No     | array | *References `groups_only`*          | **Deprecated**: Use `groups_only` instead. Legacy Poetry parameter for backward compatibility |
 | `strict`                             |    No     | bool  | `true`                              | Whether to fail if boto3 and botocore are not pinned to the same version as the ones used in the lambda runtime |
 | `packages`                           |    No     | array | `[]`                                | List of packages to install in the lambda function. If empty, all the packages will be installed |
+| `ssh_private_key`                    |    No     | str   | *undefined*                         | SSH private key content for accessing private Git repositories during build. Required for dependencies from private repos |
 
 ### Parameter Migration Guide
 
@@ -173,3 +174,23 @@ poetry_only: ['main', 'prod']
     poetry_without: ['dev', 'test']
     # These still work but are deprecated - use groups_* instead
 ```
+
+### Using SSH Private Key for Private Repository Access
+
+When your project has dependencies from private Git repositories, you can provide an SSH private key:
+
+```ansible
+- name: 'build Python app with private repository dependencies'
+  include_role:
+    name: 'ringier.aws_cicd.build_lambda_function_py'
+  vars:
+    ssh_private_key: '{{ lookup("env", "SSH_PRIVATE_KEY") }}'
+    # The SSH key will be used during the build to access private repos
+    # Supports dependencies defined as git+ssh://git@github.com/...
+```
+
+**Note**: The SSH key should be in OpenSSH format. During the build, the role will:
+- Set up SSH configuration for GitHub access
+- Mount the SSH credentials into the Docker container
+- Configure proper permissions and known_hosts
+- Clean up credentials after the build completes

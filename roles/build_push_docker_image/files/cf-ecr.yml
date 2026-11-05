@@ -10,6 +10,8 @@ Resources:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: '{{ ecr_repository_name }}'
+#{% if enable_lifecycle_rules %}
+#
       # NOTE-zw: the lovely AWS makes inconsistency between such a short distance. Here the `LifecyclePolicyText`
       # is literally a text (of type String), while several lines down there, the `RepositoryPolicyText` is a
       # JsonObject, therefore we could use the YAML representation...
@@ -43,6 +45,9 @@ Resources:
               }
             }]
           }
+#{% endif %}
+#
+
 #{% if share_with_org_unit is defined and share_with_org_unit != '' %}
 #
       RepositoryPolicyText:

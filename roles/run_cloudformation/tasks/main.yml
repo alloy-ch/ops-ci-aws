@@ -60,6 +60,8 @@
        --region {{ region }}
   no_log: '{{ ansible_verbosity < 3 }}'
 
+- import_tasks: 'version_tag.yml'
+
 #
 # finally, deploy
 #
@@ -80,11 +82,12 @@
         Name="{{ stack_name }}"
         Project="{{ project_id }}"
         Repository="{{ git_info.repo_name if repo_tag_override is not defined or repo_tag_override == '' else repo_tag_override }}"
-        {{ ('' if skip_version_tag else 'Version="v' + project_version + '"') if version_tag_override is not defined or version_tag_override == '' else 'Version="' + version_tag_override + '"' }}
+        {{ 'Version="' + version_tag + '"' if version_tag != '' else '' }}
         {{ '' if skip_version_tag else 'GitBranch="' + git_info.branch_name + '"' }}
         {{ '' if skip_version_tag else 'GitCommit="' + git_info.commit_hash + '"' }}
         {{ '' if skip_version_tag else 'GitPendingChanges="' + git_info.has_pending_changes | string + '"' }}
       --no-fail-on-empty-changeset
+  register: r_deploy_cf
 
 # deploy the non-blocking way
 - name: "[{{ stack_name }}] apply stack updates"
@@ -103,7 +106,7 @@
         Name="{{ stack_name }}"
         Project="{{ project_id }}"
         Repository="{{ git_info.repo_name if repo_tag_override is not defined or repo_tag_override == '' else repo_tag_override }}"
-        {{ ('' if skip_version_tag else 'Version="v' + project_version + '"') if version_tag_override is not defined or version_tag_override == '' else 'Version="' + version_tag_override + '"' }}
+        {{ 'Version="' + version_tag + '"' if version_tag != '' else '' }}
         {{ '' if skip_version_tag else 'GitBranch="' + git_info.branch_name + '"' }}
         {{ '' if skip_version_tag else 'GitCommit="' + git_info.commit_hash + '"' }}
         {{ '' if skip_version_tag else 'GitPendingChanges="' + git_info.has_pending_changes | string + '"' }}
@@ -111,3 +114,12 @@
   async: "{{ async_duration }}"
   poll: 0
   register: deploy_cf
+
+# publish the outcome for a deploy summary (shown with ANSIBLE_SHOW_CUSTOM_STATS=true); the result of an async
+# deploy is not known yet, and in check mode the deploy is skipped
+- name: '[{{ stack_name }}] report the stack outcome'
+  ansible.builtin.set_stats:
+    data:
+      stacks: "{{ {stack_name: ('started' if async_deploy else
+                   'skipped' if r_deploy_cf is skipped else
+                   'unchanged' if 'No changes to deploy' in r_deploy_cf.stdout | default('') else 'updated')} }}"
