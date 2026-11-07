@@ -10,7 +10,7 @@
 
 - name: '[{{ stack_name }}] work out which branch was built'
   set_fact:
-    # `source_branch`: also in CodeBuild, where the checkout is always detached
+    # `source_branch`: the branch built, also for a CodeBuild webhook build, whose checkout is detached
     _branch: "{{ git_info.source_branch | default(git_info.branch_name | default('')) }}"
 
 - name: '[{{ stack_name }}] work out which code line is deployed'
