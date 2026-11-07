@@ -50,10 +50,31 @@
       set_fact:
         codebuild_build_number: "{{ lookup('ansible.builtin.env', 'CODEBUILD_BUILD_NUMBER', default='') }}"
 
+    # CodeBuild always checks out a detached HEAD, so `git rev-parse --abbrev-ref HEAD` says `HEAD` for every build of
+    # a branch. The branch built is in the webhook's head ref (`refs/heads/develop`; its source version is the commit),
+    # or in the source version of a build started by hand or by a tool with a branch name (`develop`). A commit, a tag
+    # or a pull request (`pr/12`) names no branch: the build stays `HEAD`.
+    - name: 'work out the branch CodeBuild built'
+      set_fact:
+        _source_ref: >-
+          {{ lookup('ansible.builtin.env', 'CODEBUILD_WEBHOOK_HEAD_REF', default='')
+             or lookup('ansible.builtin.env', 'CODEBUILD_SOURCE_VERSION', default='') }}
+
+    - set_fact:
+        _source_branch: >-
+          {{ _source_ref | regex_replace('^refs/heads/', '')
+             if codebuild_build_number != '' and r_git_branch.stdout == 'HEAD'
+                and _source_ref != ''
+                and not (_source_ref is match('^(refs/tags/|refs/pull/|pr/)'))
+                and not (_source_ref is match('^[0-9a-fA-F]{7,40}$'))
+                and (_source_ref | regex_replace('^refs/heads/', '')) not in r_git_tags_at_head.stdout_lines
+             else r_git_branch.stdout }}
+
     - set_fact:
         git_info:
           repo_name: '{{ r_git_repo_name.stdout }}'
           branch_name: '{{ r_git_branch.stdout }}'
+          source_branch: '{{ _source_branch | trim }}'
           commit_hash: '{{ r_git_commit_hash.stdout }}'
           commit_hash_short: '{{ r_git_commit_hash_short.stdout }}'
           tags_at_head: '{{ r_git_tags_at_head.stdout_lines }}'

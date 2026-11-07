@@ -8,18 +8,21 @@
 #   - the same with `.dirty` appended when the working tree had uncommitted changes (a laptop deploy), whatever the
 #     ref: `v1.4.0+main.3f2a1c9.dirty`.
 
+- name: '[{{ stack_name }}] work out which branch was built'
+  set_fact:
+    # `source_branch`: also in CodeBuild, where the checkout is always detached
+    _branch: "{{ git_info.source_branch | default(git_info.branch_name | default('')) }}"
+
 - name: '[{{ stack_name }}] work out which code line is deployed'
   set_fact:
-    _branch: "{{ git_info.branch_name | default('') }}"
     _dirty: "{{ git_info.has_pending_changes | default(false) | bool }}"
     _release_line: >-
-      {{ (git_info.branch_name | default('')) == ''
-         or (git_info.branch_name | default('')) in release_branches
+      {{ _branch == ''
+         or _branch in release_branches
          or ('v' ~ project_version) in (git_info.tags_at_head | default([])) }}
     # the branch label is capped: tag values may have 256 characters, git branch names may be longer than that
     _branch_label: >-
-      {{ (('detached' if (git_info.branch_name | default('')) == 'HEAD' else (git_info.branch_name | default('')))
-         | regex_replace('[^A-Za-z0-9.-]', '-'))[:64] }}
+      {{ (('detached' if _branch == 'HEAD' else _branch) | regex_replace('[^A-Za-z0-9.-]', '-'))[:64] }}
 
 - name: '[{{ stack_name }}] work out the Version tag'
   set_fact:

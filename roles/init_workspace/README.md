@@ -23,7 +23,10 @@ This Ansible role:
 
 `git_info` is a `dict` with the following key-pairs:
 *  `repo_name`: name of the repository, without Github organization prefix
-*  `branch_name`: current git branch (`HEAD` when the checkout is detached, e.g. a tag build)
+*  `branch_name`: current git branch (`HEAD` when the checkout is detached, e.g. a tag build, and always in CodeBuild)
+*  `source_branch`: the branch built: `branch_name`, except in CodeBuild, where it comes from the webhook's head ref
+   (`CODEBUILD_WEBHOOK_HEAD_REF`) or a source version naming a branch (`CODEBUILD_SOURCE_VERSION`); `HEAD` when the
+   build is of a commit, a tag or a pull request
 *  `tags_at_head`: the git tags pointing at the current commit (list, often empty)
 *  `commit_hash`: the full (40-chars) hash of the current HEAD
 *  `commit_hash_short`: the beginning 7-chars of the hash
