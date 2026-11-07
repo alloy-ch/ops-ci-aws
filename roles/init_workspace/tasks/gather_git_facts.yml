@@ -50,10 +50,10 @@
       set_fact:
         codebuild_build_number: "{{ lookup('ansible.builtin.env', 'CODEBUILD_BUILD_NUMBER', default='') }}"
 
-    # CodeBuild always checks out a detached HEAD, so `git rev-parse --abbrev-ref HEAD` says `HEAD` for every build of
-    # a branch. The branch built is in the webhook's head ref (`refs/heads/develop`; its source version is the commit),
-    # or in the source version of a build started by hand or by a tool with a branch name (`develop`). A commit, a tag
-    # or a pull request (`pr/12`) names no branch: the build stays `HEAD`.
+    # A webhook build checks out the commit it was triggered for, a detached HEAD, so `git rev-parse --abbrev-ref HEAD`
+    # says `HEAD` for every push to a branch. The branch built is in the webhook's head ref (`refs/heads/develop`); a
+    # build started at a branch name checks out the branch, but should the checkout be detached, its source version
+    # (`develop`) names it. A commit, a tag or a pull request (`pr/12`) names no branch: the build stays `HEAD`.
     - name: 'work out the branch CodeBuild built'
       set_fact:
         _source_ref: >-
