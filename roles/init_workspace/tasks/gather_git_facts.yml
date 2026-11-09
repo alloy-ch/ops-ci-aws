@@ -50,14 +50,25 @@
       set_fact:
         codebuild_build_number: "{{ lookup('ansible.builtin.env', 'CODEBUILD_BUILD_NUMBER', default='') }}"
 
+    # `source_branch`: the branch built. A webhook build checks out the commit it was triggered for, a detached HEAD, so
+    # git says `HEAD` for every push; the webhook's head ref names the branch (`refs/heads/develop`; for a pull request
+    # its head branch). Anything else keeps what git says: a build started at a branch name checks the branch out, and
+    # one started at a commit or a tag stays `HEAD`.
     - set_fact:
         git_info:
           repo_name: '{{ r_git_repo_name.stdout }}'
           branch_name: '{{ r_git_branch.stdout }}'
+          source_branch: >-
+            {{ _webhook_head_ref | regex_replace('^refs/heads/', '')
+               if codebuild_build_number != '' and r_git_branch.stdout == 'HEAD'
+                  and _webhook_head_ref is match('^refs/heads/.+')
+               else r_git_branch.stdout }}
           commit_hash: '{{ r_git_commit_hash.stdout }}'
           commit_hash_short: '{{ r_git_commit_hash_short.stdout }}'
           tags_at_head: '{{ r_git_tags_at_head.stdout_lines }}'
           has_pending_changes: "{{ false if codebuild_build_number != '' else r_git_short_status.stdout == 'dirty' }}"
+      vars:
+        _webhook_head_ref: "{{ lookup('ansible.builtin.env', 'CODEBUILD_WEBHOOK_HEAD_REF', default='') }}"
   when: is_within_git_repo
 
 - name: 'create an empty git repository info dict'

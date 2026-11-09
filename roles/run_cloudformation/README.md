@@ -47,6 +47,10 @@ e.g. `v1.4.0+main.3f2a1c9.dirty`. Clean builds of the release lines and of the v
 released artefact from a feature-branch deployment that happens to carry the same version number, which `GitBranch`
 and `GitCommit` alone only tell to someone who looks them up.
 
+A webhook build in CodeBuild checks out a detached commit, so the branch is taken from the webhook's head ref
+(`source_branch` of `init_workspace`; a pull request build is named after its head branch). A build started at a commit
+stays `detached`. `GitBranch` names the same branch, with characters CloudFormation tags don't allow replaced by `-`.
+
 When `skip_version_tag` is set to true, the Cloudformation stack will not be tagged with `Version`. If it is false, the Cloudformation
 stack has tag `Version`, plus the additional ones including `GitBranch`, `GitCommit`, and `GitPendingChanges`.
 These three `Git*` tags indicates from which code line the stack was deployed from. 

@@ -2,8 +2,10 @@
 
 set -e
 
-# Install git and ssh clients for private repository access
-yum install -y git openssh-clients > /dev/null 2>&1 || { echo "Failed to install git and openssh-clients"; exit 1; }
+# Install git and ssh clients for private repository access.
+# Amazon Linux 2 images (python <= 3.11) have yum; Amazon Linux 2023 images (python >= 3.12) only dnf/microdnf.
+pkg_manager=$(command -v yum || command -v dnf || command -v microdnf) || { echo "No yum, dnf or microdnf found"; exit 1; }
+"$pkg_manager" install -y git openssh-clients > /dev/null 2>&1 || { echo "Failed to install git and openssh-clients"; exit 1; }
 
 strict=false
 only=""
